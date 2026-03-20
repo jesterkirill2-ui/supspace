@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support Chats Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Unbounded:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0f;
+  --surface:#111118;
+  --surface2:#18181f;
+  --surface3:#1e1e28;
+  --border:#2a2a35;
+  --border2:#3a3a48;
+  --text:#e8e8f0;
+  --text2:#a1a1b5;
+  --text3:#66667d;
+  --accent:#6c63ff;
+  --accent2:#9f98ff;
+  --done:#22c986;
+  --warn:#ffb340;
+  --danger:#ff4d6d;
+  --info:#3b8bff;
+  --mono:'JetBrains Mono', monospace;
+  --display:'Unbounded', sans-serif;
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{scrollbar-gutter:stable}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh;overflow:auto}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:42px 42px;opacity:.18;pointer-events:none}
+.app{position:relative;z-index:1;display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.sidebar{background:rgba(10,10,15,.92);border-right:1px solid var(--border);padding:22px 18px;display:flex;flex-direction:column;gap:18px;backdrop-filter:blur(10px)}
+.brand{display:flex;flex-direction:column;gap:6px}
+.brand-title{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:-.04em}
+.brand-title span{color:var(--accent2)}
+.brand-sub{font-size:11px;color:var(--text3);line-height:1.7}
+.nav{display:flex;flex-direction:column;gap:8px}
+.nav-btn{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);padding:13px 14px;cursor:pointer;transition:.18s;display:flex;flex-direction:column;gap:4px}
+.nav-btn:hover{border-color:var(--accent);color:var(--text)}
+.nav-btn.active{background:rgba(108,99,255,.12);border-color:var(--accent);color:var(--text)}
+.nav-btn strong{font-size:12px}
+.nav-btn span{font-size:10px;color:var(--text3)}
+.side-card,.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px}
+.side-card h3,.section-title{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
+.side-card h3{margin-bottom:12px}
+.section-title{margin-bottom:14px}
+.section-title::after,.side-card h3::after{content:'';flex:1;height:1px;background:var(--border)}
+.side-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.metric{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:12px;min-width:0}
+.metric .k{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.metric .v{font-family:var(--display);font-size:16px;line-height:1.15;word-break:break-word}
+.metric .v.good{color:var(--done)}
+.metric .v.warn{color:var(--warn)}
+.metric .v.info{color:var(--accent2)}
+.side-note{font-size:11px;color:var(--text3);line-height:1.7}
+.content{display:flex;flex-direction:column;min-width:0}
+.topbar{border-bottom:1px solid var(--border);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:rgba(10,10,15,.88);backdrop-filter:blur(12px)}
+.topbar-main{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--text3)}
+.topbar-title{font-family:var(--display);font-size:18px;font-weight:600;letter-spacing:-.03em}
+.topbar-sub{font-size:11px;color:var(--text3)}
+.topbar-actions,.chip-row,.btn-row,.toolbar,.chat-flags,.chat-meta,.input-tools{display:flex;gap:8px;flex-wrap:wrap}
+.workspace{flex:1;overflow:auto;padding:22px 24px 30px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,1fr);gap:16px;margin-bottom:16px}
+.hero-card{display:flex;flex-direction:column;gap:12px;min-height:180px}
+.hero-title{font-family:var(--display);font-size:22px;line-height:1.25;max-width:17ch}
+.hero-text{font-size:12px;color:var(--text2);line-height:1.8;max-width:72ch}
+.chip,.badge,.tag,.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-size:10px}
+.chip,.pill{background:var(--surface2);border:1px solid var(--border);color:var(--text2)}
+.layout{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:16px;min-height:680px;align-items:stretch}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;display:flex;flex-direction:column;min-height:0;height:680px;max-height:680px;overflow:hidden}
+.panel-head{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.panel-head-main{display:flex;flex-direction:column;gap:6px}
+.panel-title{font-family:var(--display);font-size:13px;letter-spacing:-.02em}
+.panel-sub{font-size:11px;color:var(--text3);line-height:1.6}
+.toolbar{padding:14px 20px;border-bottom:1px solid var(--border)}
+.toolbar input,.toolbar select,.composer textarea{
+  width:100%;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  color:var(--text);
+  padding:10px 12px;
+  font-family:var(--mono);
+  font-size:12px;
+  outline:none;
+  transition:border-color .15s;
+}
+.toolbar input:focus,.toolbar select:focus,.composer textarea:focus{border-color:var(--accent)}
+.toolbar input{flex:1;min-width:170px}
+.toolbar select{width:auto;min-width:120px;color:var(--text2)}
+.chat-list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:10px}
+.chat-item{display:flex;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:.16s;background:var(--surface2)}
+.chat-item + .chat-item{margin-top:8px}
+.chat-item:hover{background:#1b1b24;border-color:var(--border2)}
+.chat-item.active{background:rgba(34,201,134,.08);border-color:rgba(34,201,134,.34);box-shadow:inset 2px 0 0 var(--done)}
+.avatar-wrap{position:relative;flex-shrink:0}
+.avatar{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(108,99,255,.28),rgba(59,139,255,.18));border:1px solid rgba(159,152,255,.2);display:flex;align-items:center;justify-content:center;color:var(--accent2);font-size:13px;font-weight:700;flex-shrink:0}
+.avatar-badge{position:absolute;right:-4px;bottom:-4px;padding:2px 6px;border-radius:999px;font-size:8px;line-height:1.2;font-weight:700;letter-spacing:.05em;border:1px solid transparent;text-transform:uppercase;background:var(--surface3);color:var(--text2)}
+.avatar-badge.new{background:rgba(34,201,134,.14);color:var(--done);border-color:rgba(34,201,134,.3)}
+.avatar-badge.wait{background:rgba(255,179,64,.14);color:var(--warn);border-color:rgba(255,179,64,.3)}
+.avatar-badge.info{background:rgba(59,139,255,.14);color:var(--info);border-color:rgba(59,139,255,.3)}
+.chat-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.chat-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.chat-code{font-family:var(--display);font-size:11px;letter-spacing:.04em;color:var(--text)}
+.chat-time{font-size:10px;color:var(--text3);white-space:nowrap}
+.chat-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:nowrap}
+.meta-group{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chat-item.active .chat-code{color:#d7ffe9}
+.chat-item.active .chat-time{color:#9ac7ae}
+.badge{font-size:9px;font-weight:600;letter-spacing:.04em;border:1px solid transparent}
+.badge.good{background:rgba(34,201,134,.12);color:var(--done);border-color:rgba(34,201,134,.25)}
+.badge.warn{background:rgba(255,179,64,.12);color:var(--warn);border-color:rgba(255,179,64,.25)}
+.badge.info{background:rgba(59,139,255,.12);color:var(--info);border-color:rgba(59,139,255,.25)}
+.badge.draft{background:rgba(159,152,255,.12);color:var(--accent2);border-color:rgba(159,152,255,.25)}
+.badge.sla{background:rgba(255,77,109,.12);color:var(--danger);border-color:rgba(255,77,109,.28)}
+.badge.sla.safe{background:rgba(34,201,134,.1);color:var(--done);border-color:rgba(34,201,134,.25)}
+.badge.timer{background:rgba(255,179,64,.12);color:var(--warn);border-color:rgba(255,179,64,.26)}
+.count-dot{min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600}
+.empty-list{display:none;flex:1;align-items:center;justify-content:center;padding:24px}
+.empty-list.show{display:flex}
+.empty-card,.empty-chat{background:var(--surface2);border:1px dashed var(--border2);border-radius:16px;padding:22px;text-align:center;color:var(--text3);line-height:1.8}
+.chat-panel{display:flex;flex-direction:column;min-height:680px;max-height:680px;height:680px}
+.chat-header{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:linear-gradient(180deg,rgba(24,24,31,.98),rgba(17,17,24,.98))}
+.chat-header-main{display:flex;gap:12px;min-width:0}
+.chat-title{font-family:var(--display);font-size:15px;line-height:1.35;color:var(--text)}
+.chat-sub{font-size:11px;color:var(--text3);line-height:1.7}
+.chat-status{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.status-line{font-size:10px;color:var(--text3);text-align:right;max-width:240px;line-height:1.6}
+.messages{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:18px 20px;display:flex;flex-direction:column;gap:12px;background:linear-gradient(180deg,rgba(24,24,31,.75),rgba(17,17,24,.95))}
+.message-row{display:flex}
+.message-row.out{justify-content:flex-end}
+.message{max-width:min(72%,560px);padding:12px 14px;border-radius:16px;border:1px solid var(--border);background:var(--surface2)}
+.message-row.out .message{background:rgba(108,99,255,.12);border-color:rgba(108,99,255,.28)}
+.message-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:var(--text3);margin-bottom:6px}
+.message-media{margin-bottom:8px;overflow:hidden;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);min-width:220px;min-height:180px;display:flex;align-items:center;justify-content:center}
+.message-media img,.message-media video{display:block;max-width:100%;width:100%;height:100%;max-height:320px;object-fit:contain;background:rgba(0,0,0,.12)}
+.message-media.sticker{display:inline-flex;align-items:center;justify-content:center;padding:10px;background:transparent;border:none}
+.message-media.sticker img,.message-media.sticker video{width:144px;max-width:144px;max-height:144px}
+.message-media.gif{width:min(100%,320px);height:220px}
+.message-media.gif video{width:100%;height:100%;object-fit:cover}
+.message-media-note{padding:10px 12px;font-size:11px;line-height:1.6;color:var(--text2);background:rgba(255,255,255,.02)}
+.message-text{font-size:12px;line-height:1.75;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.composer{padding:16px 20px 20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:12px;background:rgba(17,17,24,.98)}
+.composer textarea{min-height:92px;resize:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;background:transparent;border:1px solid var(--border2);border-radius:10px;color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:.18s;text-decoration:none}
+.btn:hover{border-color:var(--accent);color:var(--accent2);background:rgba(108,99,255,.08)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{opacity:.88;color:#fff}
+.btn.good:hover{border-color:var(--done);color:var(--done);background:rgba(34,201,134,.08)}
+.btn.warn:hover{border-color:var(--warn);color:var(--warn);background:rgba(255,179,64,.08)}
+.mini-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mini-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px}
+.mini-card .k{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.mini-card .v{font-family:var(--display);font-size:20px;line-height:1}
+.mini-card .s{font-size:11px;color:var(--text3);line-height:1.6;margin-top:6px}
+.panel-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--text3)}
+.helper-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+.helper-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px}
+.helper-card p{font-size:11px;color:var(--text3);line-height:1.75}
+.admin-card{display:flex;flex-direction:column;gap:14px}
+.admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.admin-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.admin-field.full{grid-column:1/-1}
+.admin-label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.admin-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color .15s}
+.admin-input:focus{border-color:var(--accent)}
+.admin-hint{font-size:10px;color:var(--text3);line-height:1.7}
+.admin-status{padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);font-size:11px;color:var(--text3);line-height:1.7}
+.admin-status.success{border-color:rgba(34,201,134,.25);background:rgba(34,201,134,.08);color:var(--done)}
+.admin-status.error{border-color:rgba(255,77,109,.25);background:rgba(255,77,109,.08);color:var(--danger)}
+.admin-inline{display:flex;gap:8px;flex-wrap:wrap}
+.admin-meta{display:flex;gap:8px;flex-wrap:wrap}
+.hidden{display:none !important}
+.sidebar,.workspace,.chat-list,.messages{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.sidebar::-webkit-scrollbar,.workspace::-webkit-scrollbar,.chat-list::-webkit-scrollbar,.messages::-webkit-scrollbar{width:10px;height:10px}
+.sidebar::-webkit-scrollbar-thumb,.workspace::-webkit-scrollbar-thumb,.chat-list::-webkit-scrollbar-thumb,.messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:999px;border:2px solid transparent;background-clip:content-box}
+.sidebar::-webkit-scrollbar-track,.workspace::-webkit-scrollbar-track,.chat-list::-webkit-scrollbar-track,.messages::-webkit-scrollbar-track{background:transparent}
+@media (max-width:1280px){
+  .hero-grid,.helper-grid,.layout,.mini-stats{grid-template-columns:1fr}
+  .admin-form{grid-template-columns:1fr}
+  .panel,.chat-panel{height:640px;max-height:640px}
+}
+@media (max-width:920px){
+  .app{grid-template-columns:1fr}
+  .sidebar{border-right:none;border-bottom:1px solid var(--border)}
+  .panel,.chat-panel{height:600px;max-height:600px}
+}
+@media (max-width:420px){
+  .side-stats{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-title">SUP<span> CHAT</span></div>
+      <div class="brand-sub">Інтерфейс спеціаліста технічної підтримки в тій самій дизайн-системі, що й наявні dashboard-модулі.</div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-btn active" type="button">
+        <strong>Мої чати</strong>
+        <span>Робочий простір спеціаліста з єдиною зоною листування</span>
+      </button>
+      <button class="nav-btn" type="button">
+        <strong>Фільтри</strong>
+        <span>Заготовка під майбутній пошук, статуси та внутрішні позначки</span>
+      </button>
+      <button class="nav-btn" type="button">
+        <strong>Історія</strong>
+        <span>Резерв місця під історію звернень користувача та службову інформацію</span>
+      </button>
+    </nav>
+
+    <div class="side-card">
+      <h3>Стан зміни</h3>
+      <div class="side-stats">
+        <div class="metric"><div class="k">Активні чати</div><div class="v good" id="sideActiveChats">12</div></div>
+        <div class="metric"><div class="k">Непрочитані</div><div class="v warn" id="sideUnreadChats">5</div></div>
+        <div class="metric"><div class="k">Черга</div><div class="v info" id="sideQueueLoad">Стаб.</div></div>
+        <div class="metric"><div class="k">Режим</div><div class="v">Online</div></div>
+      </div>
+    </div>
+
+    <div class="side-card">
+      <h3>Стан макета</h3>
+      <div class="side-note">У файлі закладені всі потрібні стани першого етапу: порожній список чатів, список без відкритого чату, активний чат і сценарій з великою кількістю діалогів. Перемикання зроблене лише як демо-інтерфейс без інтеграцій.</div>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div class="topbar-main">
+        <div class="eyebrow">Support Workspace</div>
+        <div class="topbar-title">Робочий стіл спеціаліста технічної підтримки</div>
+        <div class="topbar-sub">Один екран для перегляду призначених чатів, перемикання між діалогами та підготовки відповіді.</div>
+      </div>
+      <div class="topbar-actions">
+        <span class="pill" id="topbarCount">12 активних чатів</span>
+        <span class="pill">Лише закріплені звернення</span>
+        <span class="pill" id="loadIndicator">Навантаження: помірне</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <div class="hero-grid">
+        <section class="card hero-card">
+          <div class="eyebrow">Операційна зона</div>
+          <div class="hero-title">Швидке перемикання між чатами без переходів на окремі сторінки</div>
+          <div class="hero-text">Інтерфейс побудовано як окремий модуль у поточній системі: темна база, ті ж шрифти, компактні картки, стриманий акцент і щільний робочий layout. Центральна зона сфокусована на переписці, а ліва панель тримає весь список чатів спеціаліста.</div>
+          <div class="chip-row">
+            <span class="chip">Стан 1: немає чатів</span>
+            <span class="chip">Стан 2: чат не вибрано</span>
+            <span class="chip">Стан 3: активний діалог</span>
+            <span class="chip">Стан 4: велика кількість чатів</span>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-title">Демо-режими</div>
+          <div class="btn-row">
+            <button class="btn primary" type="button" data-view="active">Активний чат</button>
+            <button class="btn" type="button" data-view="no-selection">Без вибору</button>
+            <button class="btn" type="button" data-view="empty">Нема чатів</button>
+            <button class="btn" type="button" data-view="busy">Багато чатів</button>
+          </div>
+          <div class="mini-stats" style="margin-top:14px">
+            <div class="mini-card">
+              <div class="k">У роботі</div>
+              <div class="v" id="heroActiveCount">12</div>
+              <div class="s">Показується окремо у верхній інформаційній зоні.</div>
+            </div>
+            <div class="mini-card">
+              <div class="k">Вибраний чат</div>
+              <div class="v" id="heroSelectedChat">1</div>
+              <div class="s">Активний діалог чітко виділений у списку.</div>
+            </div>
+            <div class="mini-card">
+              <div class="k">Черга</div>
+              <div class="v" id="heroQueueState">Помірна</div>
+              <div class="s">Службовий статус без перевантаження інтерфейсу.</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="layout">
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-head-main">
+              <div class="panel-title">Чати спеціаліста</div>
+              <div class="panel-sub">Список призначених звернень з прев’ю останнього повідомлення, часом активності та індикаторами стану.</div>
+            </div>
+            <span class="pill" id="listCountPill">12 у роботі</span>
+          </div>
+
+          <div class="toolbar">
+            <input type="text" placeholder="Пошук по імені, тегу або фрагменту повідомлення" aria-label="Пошук по чатах">
+            <select aria-label="Фільтр по статусу">
+              <option>Усі чати</option>
+              <option>Нові</option>
+              <option>Активні</option>
+              <option>Очікують</option>
+            </select>
+          </div>
+
+          <div class="empty-list" id="emptyListState">
+            <div class="empty-card">
+              Зараз немає жодного активного чату в роботі.<br>
+              Цей стан підготовлено як окремий візуальний сценарій першого етапу.
+            </div>
+          </div>
+
+          <div class="chat-list" id="chatList"></div>
+
+          <div class="panel-foot">
+            <span>Відображаються лише чати, закріплені за поточним спеціалістом.</span>
+            <span>Підготовлено місце під майбутні фільтри, статуси та пошук.</span>
+          </div>
+        </div>
+
+        <div class="panel chat-panel">
+          <div class="chat-header" id="chatHeader">
+            <div class="chat-header-main">
+              <div class="avatar" id="chatHeaderAvatar">OP</div>
+              <div>
+                <div class="chat-title" id="chatTitle">Олена Паламарчук</div>
+                <div class="chat-sub" id="chatSubtitle">Telegram ID: 84219341 • Клієнт пише з питанням по доступу до сервісу • Канал: Support Bot</div>
+                <div class="chat-flags" style="margin-top:10px" id="chatHeaderFlags">
+                  <span class="badge info">Активний</span>
+                  <span class="badge draft">Пріоритет: стандарт</span>
+                </div>
+              </div>
+            </div>
+            <div class="chat-status">
+              <span class="pill" id="chatStatusPill">Остання активність: 2 хв тому</span>
+              <div class="status-line">Робоча зона під історію звернень, нотатки та передачу чату в майбутніх етапах.</div>
+            </div>
+          </div>
+
+          <div class="empty-chat hidden" id="noSelectionState" style="margin:18px 20px 0">
+            Оберіть чат у лівому списку, щоб відкрити листування та підготувати відповідь у межах одного робочого простору.
+          </div>
+
+          <div class="messages" id="messages"></div>
+
+          <div class="composer" id="composer">
+            <div class="input-tools">
+              <span class="pill">Поле відповіді</span>
+              <span class="pill">Без інтеграції на 1 етапі</span>
+            </div>
+            <textarea id="composerInput" placeholder="Введіть відповідь користувачу..." aria-label="Поле введення повідомлення"></textarea>
+            <div class="btn-row">
+              <button class="btn good" type="button">Додати шаблон</button>
+              <button class="btn warn" type="button">Передати чат</button>
+              <button class="btn primary" type="button" id="sendReplyBtn">Надіслати</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="helper-grid">
+        <div class="helper-card admin-card">
+          <div class="section-title">Telegram Admin</div>
+          <div class="admin-form">
+            <div class="admin-field full">
+              <label class="admin-label" for="botTokenInput">Bot Token</label>
+              <input class="admin-input" id="botTokenInput" type="password" placeholder="123456:ABCDEF...">
+            </div>
+            <div class="admin-field">
+              <label class="admin-label" for="publicWebhookUrlInput">Public Webhook URL</label>
+              <input class="admin-input" id="publicWebhookUrlInput" type="text" placeholder="https://your-ngrok-domain.ngrok-free.app">
+            </div>
+            <div class="admin-field">
+              <label class="admin-label" for="webhookPathInput">Webhook Path</label>
+              <input class="admin-input" id="webhookPathInput" type="text" value="/telegram/webhook" readonly>
+            </div>
+          </div>
+          <div class="admin-inline">
+            <button class="btn primary" type="button" id="saveTelegramSettingsBtn">Зберегти ключ</button>
+            <button class="btn good" type="button" id="registerWebhookBtn">Виставити webhook</button>
+            <button class="btn" type="button" id="refreshDashboardBtn">Оновити чати</button>
+          </div>
+          <div class="admin-meta">
+            <span class="pill" id="adminTokenState">Token: не задано</span>
+            <span class="pill" id="adminWebhookState">Webhook: не активовано</span>
+            <span class="pill" id="adminBotState">Bot: demo</span>
+          </div>
+          <div class="admin-status" id="adminStatusBox">Для реального webhook Telegram потрібен публічний URL, бо `localhost` недоступний ззовні. Наприклад, підніми `ngrok http 3000`, встав URL сюди й натисни "Виставити webhook".</div>
+          <div class="admin-hint">Після запуску локального сервера сторінка за адресою `http://localhost:3000/support` автоматично підтягне збережені налаштування і реальні чати з Telegram. Якщо сервер не запущений, інтерфейс залишиться на демо-даних.</div>
+        </div>
+        <div class="helper-card">
+          <div class="section-title">Майбутнє розширення</div>
+          <p>Структура вже готова під Telegram-інтеграцію, автоматичне надходження нових звернень, робочі статуси чатів, службові позначки, історію звернень та передачу діалогу іншому спеціалісту.</p>
+        </div>
+        <div class="helper-card">
+          <div class="section-title">UX-фокус</div>
+          <p>Інтерфейс не перевантажено другорядними блоками: у пріоритеті список чатів, кількість активних діалогів, поточний чат та поле відповіді. Це спрощує щоденну операційну роботу.</p>
+        </div>
+        <div class="helper-card">
+          <div class="section-title">Адаптивність</div>
+          <p>Макет коректно перебудовується для ноутбуків і десктопів: при зменшенні ширини колонки стають вертикальними, але логіка одного робочого простору зберігається.</p>
+        </div>
+      </section>
+    </main>
+  </section>
+</div>
+
+<script>
+const baseChats = [
+  {
+    id: 1,
+    name: 'Олена Паламарчук',
+    initials: 'OP',
+    time: '2 хв тому',
+    unread: 2,
+    status: 'Активний',
+    statusTone: 'info',
+    tag: 'Пріоритет: стандарт',
+    listBadge: 'WAIT',
+    listBadgeTone: 'wait',
+    sla: 'SLA 12 хв',
+    waitTime: 'Без відп. 12 хв',
+    subtitle: 'Telegram ID: 84219341 • Клієнт пише з питанням по доступу до сервісу • Канал: Support Bot',
+    messages: [
+      { side: 'in', author: 'Олена', time: '10:12', text: 'Доброго дня, після зміни пароля система не пускає в акаунт.' },
+      { side: 'out', author: 'Спеціаліст', time: '10:13', text: 'Вітаю. Перевіряю ваш запит. Підкажіть, будь ласка, чи зʼявляється конкретне повідомлення про помилку?' },
+      { side: 'in', author: 'Олена', time: '10:14', text: 'Так, пише що пароль невірний, хоча я його щойно оновила.' },
+      { side: 'out', author: 'Спеціаліст', time: '10:15', text: 'Зрозуміло. У межах цього макета це демонстраційний діалог, але зона переписки вже підготовлена під реальну історію повідомлень.' }
+    ]
+  },
+  {
+    id: 2,
+    name: 'ТОВ "Промфлекс"',
+    initials: 'ПФ',
+    time: '7 хв тому',
+    unread: 0,
+    status: 'Очікує відповідь',
+    statusTone: 'warn',
+    tag: 'B2B',
+    listBadge: 'WAIT',
+    listBadgeTone: 'wait',
+    sla: 'SLA 18 хв',
+    waitTime: 'Без відп. 18 хв',
+    subtitle: 'Юридична особа • Питання по звітності • Остання дія зафіксована сьогодні',
+    messages: [
+      { side: 'in', author: 'Промфлекс', time: '09:40', text: 'Потрібно уточнити, чому не формується звіт за вчорашній день.' },
+      { side: 'out', author: 'Спеціаліст', time: '09:42', text: 'Прийняв запит. Уточнюю деталі та повернусь з відповіддю.' }
+    ]
+  },
+  {
+    id: 3,
+    name: 'Ігор Власенко',
+    initials: 'ІВ',
+    time: '11 хв тому',
+    unread: 1,
+    status: 'Новий',
+    statusTone: 'good',
+    tag: 'Новий чат',
+    listBadge: 'NEW',
+    listBadgeTone: 'new',
+    sla: 'SLA 11 хв',
+    waitTime: '',
+    subtitle: 'Нове звернення • Потребує первинної реакції • Канал: Support Bot',
+    messages: [
+      { side: 'in', author: 'Ігор', time: '09:28', text: 'Перекиньте, будь ласка, новий інвайт для входу в кабінет.' }
+    ]
+  },
+  {
+    id: 4,
+    name: 'Марія Климчук',
+    initials: 'МК',
+    time: '18 хв тому',
+    unread: 0,
+    status: 'Активний',
+    statusTone: 'info',
+    tag: 'Навігація',
+    listBadge: 'LIVE',
+    listBadgeTone: 'info',
+    sla: '',
+    waitTime: '',
+    subtitle: 'Питання по інтерфейсу користувача • Потребує короткої консультації',
+    messages: [
+      { side: 'in', author: 'Марія', time: '09:11', text: 'Підкажіть, де знайти історію моїх заявок у новому інтерфейсі?' },
+      { side: 'out', author: 'Спеціаліст', time: '09:13', text: 'Історія буде доступна у правому верхньому меню після оновлення модуля. Для демо тут показано лише макет.' }
+    ]
+  },
+  {
+    id: 5,
+    name: 'Сергій Бойко',
+    initials: 'СБ',
+    time: '31 хв тому',
+    unread: 3,
+    status: 'Активний',
+    statusTone: 'info',
+    tag: 'Верифікація',
+    listBadge: 'WAIT',
+    listBadgeTone: 'wait',
+    sla: 'SLA 31 хв',
+    waitTime: 'Без відп. 31 хв',
+    subtitle: 'Проблема з SMS-кодом • Можливий технічний інцидент',
+    messages: [
+      { side: 'in', author: 'Сергій', time: '08:59', text: 'Не проходить підтвердження телефону, код не надходить.' },
+      { side: 'out', author: 'Спеціаліст', time: '09:01', text: 'Дякую, перевіряю. Якщо проблема повторюється, зафіксуємо запит для технічної команди.' }
+    ]
+  },
+  {
+    id: 6,
+    name: 'Вікторія Левчук',
+    initials: 'ВЛ',
+    time: '43 хв тому',
+    unread: 0,
+    status: 'Очікує',
+    statusTone: 'warn',
+    tag: 'Налаштування',
+    listBadge: 'WAIT',
+    listBadgeTone: 'wait',
+    sla: 'SLA 43 хв',
+    waitTime: 'Без відп. 43 хв',
+    subtitle: 'Питання про обліковий запис • Очікується уточнення від користувача',
+    messages: [
+      { side: 'in', author: 'Вікторія', time: '08:45', text: 'Чи можна змінити пошту, на яку приходять системні сповіщення?' }
+    ]
+  }
+];
+
+const busyChats = Array.from({ length: 18 }, (_, index) => {
+  const source = baseChats[index % baseChats.length];
+  return {
+    ...source,
+    id: 100 + index,
+    name: `${source.name} ${index + 1}`,
+    initials: source.initials,
+    time: `${index + 1} хв тому`,
+    unread: index % 4 === 0 ? 2 : index % 3 === 0 ? 1 : 0,
+    listBadge: index % 5 === 0 ? 'NEW' : index % 2 === 0 ? 'WAIT' : 'LIVE',
+    listBadgeTone: index % 5 === 0 ? 'new' : index % 2 === 0 ? 'wait' : 'info',
+    sla: index % 2 === 0 ? `SLA ${12 + index} хв` : '',
+    waitTime: index % 2 === 0 ? `Без відп. ${12 + index} хв` : ''
+  };
+});
+
+const stateConfig = {
+  active: { chats: baseChats, selectedId: 1, load: 'Навантаження: помірне', queue: 'Помірна' },
+  'no-selection': { chats: baseChats, selectedId: null, load: 'Навантаження: помірне', queue: 'Помірна' },
+  empty: { chats: [], selectedId: null, load: 'Навантаження: низьке', queue: 'Порожня' },
+  busy: { chats: busyChats, selectedId: busyChats[0].id, load: 'Навантаження: високе', queue: 'Висока' }
+};
+
+const chatList = document.getElementById('chatList');
+const emptyListState = document.getElementById('emptyListState');
+const messages = document.getElementById('messages');
+const noSelectionState = document.getElementById('noSelectionState');
+const composer = document.getElementById('composer');
+const chatHeader = document.getElementById('chatHeader');
+const sideActiveChats = document.getElementById('sideActiveChats');
+const sideUnreadChats = document.getElementById('sideUnreadChats');
+const sideQueueLoad = document.getElementById('sideQueueLoad');
+const topbarCount = document.getElementById('topbarCount');
+const loadIndicator = document.getElementById('loadIndicator');
+const listCountPill = document.getElementById('listCountPill');
+const heroActiveCount = document.getElementById('heroActiveCount');
+const heroSelectedChat = document.getElementById('heroSelectedChat');
+const heroQueueState = document.getElementById('heroQueueState');
+const chatHeaderAvatar = document.getElementById('chatHeaderAvatar');
+const chatTitle = document.getElementById('chatTitle');
+const chatSubtitle = document.getElementById('chatSubtitle');
+const chatHeaderFlags = document.getElementById('chatHeaderFlags');
+const chatStatusPill = document.getElementById('chatStatusPill');
+const composerInput = document.getElementById('composerInput');
+const sendReplyBtn = document.getElementById('sendReplyBtn');
+const botTokenInput = document.getElementById('botTokenInput');
+const publicWebhookUrlInput = document.getElementById('publicWebhookUrlInput');
+const webhookPathInput = document.getElementById('webhookPathInput');
+const saveTelegramSettingsBtn = document.getElementById('saveTelegramSettingsBtn');
+const registerWebhookBtn = document.getElementById('registerWebhookBtn');
+const refreshDashboardBtn = document.getElementById('refreshDashboardBtn');
+const adminStatusBox = document.getElementById('adminStatusBox');
+const adminTokenState = document.getElementById('adminTokenState');
+const adminWebhookState = document.getElementById('adminWebhookState');
+const adminBotState = document.getElementById('adminBotState');
+
+let currentState = 'active';
+let selectedChatId = stateConfig[currentState].selectedId;
+let liveChats = [];
+let dashboardMode = 'demo';
+let dashboardRefreshTimer = null;
+let dashboardRequestInFlight = false;
+let liveClockTimer = null;
+let lastRenderedSelectedChatId = null;
+let lastRenderedMessageSignature = '';
+
+function setAdminStatus(text, tone = '') {
+  adminStatusBox.textContent = text;
+  adminStatusBox.className = `admin-status${tone ? ` ${tone}` : ''}`;
+}
+
+function formatLiveDuration(isoString) {
+  if (!isoString) {
+    return '';
+  }
+
+  const startedAt = new Date(isoString).getTime();
+  if (Number.isNaN(startedAt)) {
+    return '';
+  }
+
+  const totalSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatRelativeTime(isoString) {
+  if (!isoString) {
+    return 'щойно';
+  }
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - new Date(isoString).getTime()) / 1000));
+  if (diffSeconds < 5) {
+    return 'щойно';
+  }
+  if (diffSeconds < 60) {
+    return `${diffSeconds} сек тому`;
+  }
+  if (diffSeconds < 3600) {
+    return `${Math.floor(diffSeconds / 60)} хв тому`;
+  }
+  return `${Math.floor(diffSeconds / 3600)} год тому`;
+}
+
+function getDynamicChatValues(chat) {
+  const hasWait = Boolean(chat.waitStartedAt);
+  return {
+    hasWait,
+    timeLabel: chat.lastActivityAt ? formatRelativeTime(chat.lastActivityAt) : (chat.time || 'щойно'),
+    waitLabel: hasWait ? `Без відп. ${formatLiveDuration(chat.waitStartedAt)}` : '',
+    slaLabel: hasWait ? `SLA ${formatLiveDuration(chat.waitStartedAt)}` : ''
+  };
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderMessageMedia(media) {
+  if (!media?.fileId) {
+    return '';
+  }
+
+  const fileUrl = `/api/telegram/file/${encodeURIComponent(media.fileId)}`;
+
+  if (media.renderAs === 'image') {
+    const extraClass = media.kind === 'sticker' ? ' sticker' : '';
+    return `
+      <div class="message-media${extraClass}">
+        <img src="${fileUrl}" alt="${escapeHtml(media.kind || 'media')}">
+      </div>
+    `;
+  }
+
+  if (media.renderAs === 'video') {
+    const extraClass = media.kind === 'sticker' ? ' sticker' : (media.kind === 'animation' || media.kind === 'document-video') ? ' gif' : '';
+    const showControls = media.kind === 'video';
+    return `
+      <div class="message-media${extraClass}">
+        <video
+          src="${fileUrl}"
+          autoplay
+          loop
+          muted
+          playsinline
+          preload="metadata"
+          ${showControls ? 'controls' : ''}
+          ${showControls ? '' : 'disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"'}
+        ></video>
+      </div>
+    `;
+  }
+
+  if (media.renderAs === 'animated-sticker') {
+    return `
+      <div class="message-media-note">
+        ${escapeHtml(media.emoji || '')} Animated sticker (${escapeHtml(media.setName || 'Telegram sticker')})
+      </div>
+    `;
+  }
+
+  return '';
+}
+
+function updateAdminMeta(settings = {}) {
+  adminTokenState.textContent = settings.hasBotToken ? 'Token: збережено' : 'Token: не задано';
+  adminWebhookState.textContent = settings.lastWebhookSetAt
+    ? `Webhook: ${new Date(settings.lastWebhookSetAt).toLocaleString('uk-UA')}`
+    : 'Webhook: не активовано';
+  adminBotState.textContent = settings.botInfo?.username
+    ? `Bot: @${settings.botInfo.username}`
+    : (settings.hasBotToken ? 'Bot: токен збережено' : 'Bot: demo');
+
+  if (typeof settings.publicWebhookUrl === 'string') {
+    publicWebhookUrlInput.value = settings.publicWebhookUrl;
+  }
+
+  if (typeof settings.webhookPath === 'string' && settings.webhookPath) {
+    webhookPathInput.value = settings.webhookPath;
+  }
+
+  if (settings.lastError) {
+    setAdminStatus(settings.lastError, 'error');
+  }
+}
+
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || `HTTP ${response.status}`);
+  }
+  return payload;
+}
+
+function useDemoMode() {
+  dashboardMode = 'demo';
+  renderState(currentState);
+  setAdminStatus('Локальний сервер не відповів, тому зараз показані демо-чати. Після запуску `node server.js` сторінка підтягне реальні Telegram-повідомлення.', '');
+}
+
+async function loadDashboardFromApi(options = {}) {
+  if (dashboardRequestInFlight && !options.force) {
+    return;
+  }
+
+  try {
+    dashboardRequestInFlight = true;
+    const payload = await fetchJson('/api/dashboard');
+    const chats = Array.isArray(payload.chats) ? payload.chats : [];
+    liveChats = chats;
+    dashboardMode = chats.length ? 'live' : 'empty-live';
+    const selectedStillExists = chats.some((chat) => chat.id === selectedChatId);
+    const nextSelectedId = selectedStillExists ? selectedChatId : (chats[0]?.id || null);
+
+    if (chats.length) {
+      stateConfig.active = { chats, selectedId: nextSelectedId, load: 'Навантаження: live', queue: 'Telegram' };
+      stateConfig['no-selection'] = { chats, selectedId: null, load: 'Навантаження: live', queue: 'Telegram' };
+      stateConfig.busy = { chats, selectedId: nextSelectedId, load: 'Навантаження: live', queue: 'Telegram' };
+      renderState(currentState === 'no-selection' ? 'no-selection' : 'active');
+    } else {
+      const emptyLiveState = { chats: [], selectedId: null, load: 'Навантаження: низьке', queue: 'Порожня' };
+      stateConfig.active = emptyLiveState;
+      stateConfig['no-selection'] = emptyLiveState;
+      stateConfig.empty = emptyLiveState;
+      stateConfig.busy = emptyLiveState;
+      renderState('empty');
+    }
+
+    updateAdminMeta(payload.settings || {});
+    if (!payload.settings?.lastError) {
+      setAdminStatus(chats.length
+        ? 'Підключено локальний backend. Список чатів оновлено з Telegram-сховища.'
+        : 'Backend підключено. Telegram-чатів ще немає, список поки порожній.', 'success');
+    }
+  } catch (error) {
+    useDemoMode();
+  } finally {
+    dashboardRequestInFlight = false;
+  }
+}
+
+function startDashboardAutoRefresh() {
+  if (dashboardRefreshTimer) {
+    clearInterval(dashboardRefreshTimer);
+  }
+
+  dashboardRefreshTimer = setInterval(() => {
+    if (document.hidden || dashboardMode === 'demo') {
+      return;
+    }
+    loadDashboardFromApi();
+  }, 1500);
+}
+
+function refreshLiveTimeLabels() {
+  renderChats();
+
+  const { chats } = stateConfig[currentState];
+  const selectedChat = chats.find((chat) => chat.id === selectedChatId);
+  if (selectedChat && !chatHeader.classList.contains('hidden')) {
+    chatStatusPill.textContent = `Остання активність: ${getDynamicChatValues(selectedChat).timeLabel}`;
+  }
+}
+
+function scrollMessagesToBottom() {
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function startLiveClock() {
+  if (liveClockTimer) {
+    clearInterval(liveClockTimer);
+  }
+
+  liveClockTimer = setInterval(() => {
+    if (dashboardMode === 'demo') {
+      return;
+    }
+    refreshLiveTimeLabels();
+  }, 1000);
+}
+
+function renderState(stateKey) {
+  currentState = stateKey;
+  const state = stateConfig[stateKey];
+  selectedChatId = state.selectedId;
+
+  const unreadTotal = state.chats.reduce((sum, chat) => sum + (chat.unread > 0 ? 1 : 0), 0);
+  sideActiveChats.textContent = state.chats.length;
+  sideUnreadChats.textContent = unreadTotal;
+  sideQueueLoad.textContent = state.queue;
+  topbarCount.textContent = `${state.chats.length} активних чатів`;
+  loadIndicator.textContent = state.load;
+  listCountPill.textContent = state.chats.length ? `${state.chats.length} у роботі` : '0 у роботі';
+  heroActiveCount.textContent = state.chats.length;
+  heroSelectedChat.textContent = selectedChatId ? '1' : '0';
+  heroQueueState.textContent = state.queue;
+
+  renderChats();
+  renderChatView();
+
+  document.querySelectorAll('[data-view]').forEach((button) => {
+    button.classList.toggle('primary', button.dataset.view === stateKey);
+  });
+}
+
+function renderChats() {
+  const { chats } = stateConfig[currentState];
+  chatList.innerHTML = '';
+
+  if (!chats.length) {
+    emptyListState.classList.add('show');
+    chatList.classList.add('hidden');
+    return;
+  }
+
+  emptyListState.classList.remove('show');
+  chatList.classList.remove('hidden');
+
+  chats.forEach((chat) => {
+    const dynamic = getDynamicChatValues(chat);
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `chat-item${chat.id === selectedChatId ? ' active' : ''}`;
+    const slaClass = dynamic.hasWait ? 'badge sla' : 'badge sla safe';
+    const effectiveSlaText = dynamic.hasWait ? dynamic.slaLabel : 'Відп. є';
+    const slaText = chat.sla || 'Відп. є';
+    item.innerHTML = `
+      <div class="avatar-wrap">
+        <div class="avatar">${chat.initials}</div>
+        <span class="avatar-badge ${chat.listBadgeTone}">${chat.listBadge}</span>
+      </div>
+      <div class="chat-body">
+        <div class="chat-top">
+          <div class="chat-code">${chat.initials}</div>
+          <div class="chat-time">${dynamic.timeLabel}</div>
+        </div>
+        <div class="chat-meta">
+          <div class="meta-group">
+            <span class="${slaClass}">${effectiveSlaText}</span>
+            ${dynamic.waitLabel ? `<span class="badge timer">${dynamic.waitLabel}</span>` : ''}
+            <span class="badge ${chat.statusTone}">${chat.status}</span>
+          </div>
+          ${chat.unread ? `<span class="count-dot">${chat.unread}</span>` : ''}
+        </div>
+      </div>
+    `;
+    item.addEventListener('click', () => {
+      selectedChatId = chat.id;
+      renderChats();
+      renderChatView();
+    });
+    chatList.appendChild(item);
+  });
+}
+
+function renderChatView() {
+  const { chats } = stateConfig[currentState];
+  const chat = chats.find((item) => item.id === selectedChatId);
+
+  if (!chat) {
+    chatHeader.classList.add('hidden');
+    messages.classList.add('hidden');
+    composer.classList.add('hidden');
+    noSelectionState.classList.remove('hidden');
+    return;
+  }
+
+  chatHeader.classList.remove('hidden');
+  messages.classList.remove('hidden');
+  composer.classList.remove('hidden');
+  noSelectionState.classList.add('hidden');
+
+  chatHeaderAvatar.textContent = chat.initials;
+  chatTitle.textContent = chat.name;
+  chatSubtitle.textContent = chat.subtitle;
+  chatHeaderFlags.innerHTML = `
+    <span class="badge ${chat.statusTone}">${chat.status}</span>
+    <span class="badge draft">${chat.tag}</span>
+  `;
+  chatStatusPill.textContent = `Остання активність: ${getDynamicChatValues(chat).timeLabel}`;
+  chatStatusPill.textContent = `Остання активність: ${chat.time}`;
+
+  chatStatusPill.textContent = `Остання активність: ${getDynamicChatValues(chat).timeLabel}`;
+  const lastMessage = chat.messages[chat.messages.length - 1] || null;
+  const nextSignature = `${chat.id}:${chat.messages.length}:${lastMessage?.side || ''}:${lastMessage?.time || ''}:${lastMessage?.text || ''}:${lastMessage?.media?.fileId || ''}`;
+  const shouldAutoScroll = lastRenderedSelectedChatId !== chat.id
+    || lastRenderedMessageSignature !== nextSignature;
+
+  if (!shouldAutoScroll) {
+    return;
+  }
+
+  messages.innerHTML = '';
+  chat.messages.forEach((message) => {
+    const row = document.createElement('div');
+    row.className = `message-row ${message.side === 'out' ? 'out' : ''}`;
+    const mediaMarkup = renderMessageMedia(message.media);
+    const textMarkup = message.text ? `<div class="message-text">${escapeHtml(message.text)}</div>` : '';
+    row.innerHTML = `
+      <div class="message">
+        <div class="message-meta">
+          <span>${message.author}</span>
+          <span>${message.time}</span>
+        </div>
+        ${mediaMarkup}
+        ${textMarkup}
+      </div>
+    `;
+    messages.appendChild(row);
+  });
+
+  lastRenderedSelectedChatId = chat.id;
+  lastRenderedMessageSignature = nextSignature;
+
+  if (shouldAutoScroll) {
+    requestAnimationFrame(scrollMessagesToBottom);
+  }
+}
+
+async function saveTelegramSettings() {
+  try {
+    setAdminStatus('Зберігаю налаштування Telegram і перевіряю токен...');
+    const payload = await fetchJson('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        botToken: botTokenInput.value.trim(),
+        publicWebhookUrl: publicWebhookUrlInput.value.trim(),
+        webhookPath: webhookPathInput.value.trim()
+      })
+    });
+
+    updateAdminMeta(payload.settings || {});
+    botTokenInput.value = '';
+    setAdminStatus('Налаштування збережено. Токен перевірено, можна виставляти webhook.', 'success');
+    await loadDashboardFromApi();
+  } catch (error) {
+    setAdminStatus(error.message, 'error');
+  }
+}
+
+async function registerWebhook() {
+  try {
+    setAdminStatus('Виставляю webhook у Telegram...');
+    const payload = await fetchJson('/api/admin/webhook/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+
+    updateAdminMeta(payload.settings || {});
+    setAdminStatus(`Webhook активовано: ${payload.webhookUrl}`, 'success');
+  } catch (error) {
+    setAdminStatus(error.message, 'error');
+  }
+}
+
+async function sendReply() {
+  const text = composerInput.value.trim();
+  if (!text || !selectedChatId || dashboardMode === 'demo') {
+    if (dashboardMode === 'demo') {
+      setAdminStatus('Надсилання працює тільки через локальний backend. Запусти сервер і відкрий сторінку через http://localhost:3000/support.', 'error');
+    }
+    return;
+  }
+
+  try {
+    await fetchJson('/api/admin/messages/outgoing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId: selectedChatId, text })
+    });
+    composerInput.value = '';
+    await loadDashboardFromApi();
+    setAdminStatus('Вихідне повідомлення додано до локальної історії чату.', 'success');
+  } catch (error) {
+    setAdminStatus(error.message, 'error');
+  }
+}
+
+composerInput.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || event.shiftKey) {
+    return;
+  }
+
+  event.preventDefault();
+  sendReply();
+});
+
+document.querySelectorAll('[data-view]').forEach((button) => {
+  button.addEventListener('click', () => renderState(button.dataset.view));
+});
+
+saveTelegramSettingsBtn.addEventListener('click', saveTelegramSettings);
+registerWebhookBtn.addEventListener('click', registerWebhook);
+refreshDashboardBtn.addEventListener('click', loadDashboardFromApi);
+sendReplyBtn.addEventListener('click', sendReply);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    loadDashboardFromApi();
+  }
+});
+
+renderState('active');
+loadDashboardFromApi();
+startDashboardAutoRefresh();
+startLiveClock();
+</script>
+</body>
+</html>

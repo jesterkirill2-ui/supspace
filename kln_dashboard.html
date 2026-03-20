@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KLN Evaluation Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Unbounded:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0f;--surface:#111118;--surface2:#18181f;--surface3:#1e1e28;--border:#2a2a35;--border2:#3a3a48;
+  --text:#e8e8f0;--text2:#a1a1b5;--text3:#66667d;--accent:#6c63ff;--accent2:#9f98ff;--done:#22c986;
+  --warn:#ffb340;--danger:#ff4d6d;--info:#3b8bff;--mono:'JetBrains Mono', monospace;--display:'Unbounded', sans-serif;--r:12px;--page-scale:1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{scrollbar-gutter:stable}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh;overflow:auto}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:42px 42px;opacity:.18;pointer-events:none}
+.app{position:relative;z-index:1;display:grid;grid-template-columns:260px 1fr;min-height:100vh;zoom:var(--page-scale)}
+.sidebar{background:rgba(10,10,15,.92);border-right:1px solid var(--border);padding:22px 18px;display:flex;flex-direction:column;gap:18px;backdrop-filter:blur(10px)}
+.brand{display:flex;flex-direction:column;gap:6px}
+.brand-title{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:-.04em}
+.brand-title span{color:var(--accent2)}
+.brand-sub{font-size:11px;color:var(--text3);line-height:1.6}
+.nav{display:flex;flex-direction:column;gap:8px}
+.nav-btn{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);padding:13px 14px;cursor:pointer;transition:.18s;display:flex;flex-direction:column;gap:4px}
+.nav-btn:hover{border-color:var(--accent);color:var(--text)}
+.nav-btn.active{background:rgba(108,99,255,.12);border-color:var(--accent);color:var(--text)}
+.nav-btn strong{font-size:12px}
+.nav-btn span{font-size:10px;color:var(--text3)}
+.side-card,.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px}
+.side-card h3{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.side-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric,.stat,.summary-card,.meta-box{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px}
+.metric .k,.stat .k,.summary-card .k,.meta-box .k{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.metric .v,.summary-card .v{font-family:var(--display);font-size:18px}
+.metric .v.good{color:var(--done)}
+.metric .v.warn{color:var(--warn)}
+.side-note,.muted,.stat .s,.summary-card .s{font-size:11px;color:var(--text3);line-height:1.7}
+.content{display:flex;flex-direction:column;min-width:0}
+.topbar{border-bottom:1px solid var(--border);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:rgba(10,10,15,.88);backdrop-filter:blur(12px)}
+.topbar-main{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--text3)}
+.topbar-title{font-family:var(--display);font-size:18px;font-weight:600;letter-spacing:-.03em}
+.topbar-sub{font-size:11px;color:var(--text3)}
+.topbar-actions,.btn-row,.inline-actions,.chip-row{display:flex;gap:8px;flex-wrap:wrap}
+.workspace{flex:1;overflow:visible;padding:22px 24px 30px}
+.view{display:none;flex-direction:column;gap:18px}
+.view.active{display:flex}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);gap:16px}
+.hero-card{display:flex;flex-direction:column;gap:12px;min-height:180px}
+.hero-title{font-family:var(--display);font-size:22px;line-height:1.25;max-width:16ch}
+.hero-text{font-size:12px;color:var(--text2);line-height:1.8;max-width:74ch}
+.chip,.badge,.path-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-size:10px}
+.chip,.path-pill{background:var(--surface2);border:1px solid var(--border);color:var(--text2)}
+.section-title{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:14px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.span-2{grid-column:span 2}
+.field.span-4{grid-column:1/-1}
+.label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:100px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;background:transparent;border:1px solid var(--border2);border-radius:10px;color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:.18s;text-decoration:none}
+.btn:hover{border-color:var(--accent);color:var(--accent2);background:rgba(108,99,255,.08)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{opacity:.88;color:#fff}
+.btn.danger:hover{border-color:var(--danger);color:var(--danger);background:rgba(255,77,109,.08)}
+.btn.good:hover{border-color:var(--done);color:var(--done);background:rgba(34,201,134,.08)}
+.stats-grid,.summary-grid,.detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat .v{font-family:var(--display);font-size:22px;line-height:1}
+.layout-2{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:16px}
+.list-card{display:flex;flex-direction:column;min-height:420px}
+.list-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.list-toolbar input,.list-toolbar select{flex:1;min-width:120px}
+.scroll{overflow:auto}
+.task-list,.history-list,.template-list,.block-list,.criteria-list{display:flex;flex-direction:column;gap:8px}
+.task-item,.history-item,.template-item,.block-card,.criterion{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;transition:.16s}
+.task-item,.history-item,.template-item{cursor:pointer}
+.task-item:hover,.history-item:hover,.template-item:hover{border-color:var(--border2);background:#1b1b24}
+.task-item.active,.template-item.active,.history-item.active{border-color:var(--accent);background:rgba(108,99,255,.1)}
+.item-top,.block-top,.criterion-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.item-title,.criterion-name{font-size:12px;line-height:1.55}
+.item-sub,.criterion-desc{font-size:10px;color:var(--text3);margin-top:6px;line-height:1.6}
+.badge{font-size:9px;font-weight:600;letter-spacing:.04em;border:1px solid transparent}
+.badge.good{background:rgba(34,201,134,.12);color:var(--done);border-color:rgba(34,201,134,.25)}
+.badge.warn{background:rgba(255,179,64,.12);color:var(--warn);border-color:rgba(255,179,64,.25)}
+.badge.info{background:rgba(59,139,255,.12);color:var(--info);border-color:rgba(59,139,255,.25)}
+.badge.draft{background:rgba(159,152,255,.12);color:var(--accent2);border-color:rgba(159,152,255,.25)}
+.badge.archived{background:rgba(136,136,160,.12);color:var(--text2);border-color:rgba(136,136,160,.25)}
+.meta-box .v{font-size:12px;line-height:1.7}
+.template-header{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:12px}
+.block-name{font-family:var(--display);font-size:13px}
+.criterion-grid{display:grid;grid-template-columns:140px 140px minmax(0,1fr);gap:10px}
+.score-box{display:flex;align-items:center;justify-content:center;background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:14px;padding:16px;min-height:120px}
+.score-main{font-family:var(--display);font-size:34px;line-height:1}
+.score-sub{font-size:11px;color:var(--text3);margin-top:6px;text-align:center}
+.empty{display:flex;align-items:center;justify-content:center;min-height:180px;text-align:center;color:var(--text3);border:1px dashed var(--border2);border-radius:14px;padding:18px;line-height:1.8}
+.status-line{padding:11px 14px;border-radius:12px;font-size:11px;line-height:1.7;display:none}
+.status-line.show{display:block}
+.status-line.success{background:rgba(34,201,134,.1);border:1px solid rgba(34,201,134,.25);color:var(--done)}
+.status-line.error{background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.25);color:var(--danger)}
+.status-line.info{background:rgba(59,139,255,.1);border:1px solid rgba(59,139,255,.25);color:var(--info)}
+.sidebar,.workspace,.scroll{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.sidebar::-webkit-scrollbar,.workspace::-webkit-scrollbar,.scroll::-webkit-scrollbar{width:10px;height:10px}
+.sidebar::-webkit-scrollbar-thumb,.workspace::-webkit-scrollbar-thumb,.scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:999px;border:2px solid transparent;background-clip:content-box}
+.sidebar::-webkit-scrollbar-track,.workspace::-webkit-scrollbar-track,.scroll::-webkit-scrollbar-track{background:transparent}
+@media (max-width:1200px){.form-grid,.stats-grid,.summary-grid,.template-header,.detail-grid,.hero-grid,.layout-2{grid-template-columns:1fr}.field.span-2,.field.span-4{grid-column:auto}}
+@media (max-width:920px){body{overflow:auto}.app{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-title">KLN<span> EVAL</span></div>
+      <div class="brand-sub">Окремий інструмент оцінки задач у стилі `main_dashboard` з шаблонізатором КЛН та історією збережень.</div>
+    </div>
+    <nav class="nav">
+      <button class="nav-btn active" data-view-btn="evaluationView"><strong>Оцінка задач</strong><span>Вибір задачі, шаблону, балів і коментарів</span></button>
+      <button class="nav-btn" data-view-btn="templatesView"><strong>Шаблони КЛН</strong><span>Створення, редагування, архівування шаблонів</span></button>
+      <button class="nav-btn" data-view-btn="historyView"><strong>Історія оцінок</strong><span>Список збережених перевірок та швидкий перегляд</span></button>
+      <button class="nav-btn" data-view-btn="settingsView"><strong>Налаштування</strong><span>Папки збереження, імпорт задач, локальне сховище</span></button>
+    </nav>
+    <div class="side-card">
+      <h3>Стан системи</h3>
+      <div class="side-stats">
+        <div class="metric"><div class="k">Задач</div><div class="v" id="sideTaskCount">0</div></div>
+        <div class="metric"><div class="k">Шаблонів</div><div class="v" id="sideTemplateCount">0</div></div>
+        <div class="metric"><div class="k">Оцінок</div><div class="v good" id="sideEvaluationCount">0</div></div>
+        <div class="metric"><div class="k">Сер. бал</div><div class="v warn" id="sideAvgScore">0%</div></div>
+      </div>
+    </div>
+    <div class="side-card">
+      <h3>Підказка</h3>
+      <div class="side-note">Сторінка читає ті самі імпорти задач, що й `main_dashboard`, через той самий ключ `localStorage`. Якщо задач ще немає, їх можна імпортувати тут у вкладці налаштувань.</div>
+    </div>
+  </aside>
+  <section class="content">
+    <header class="topbar">
+      <div class="topbar-main">
+        <div class="eyebrow">Task Quality Control</div>
+        <div class="topbar-title" id="pageTitle">Оцінка задач</div>
+        <div class="topbar-sub" id="pageSubtitle">Перевірка конкретної задачі за блоками, критеріями та вагами.</div>
+      </div>
+      <div class="topbar-actions">
+        <select id="zoomSelect" class="btn" style="padding-right:32px">
+          <option value="0.8">Масштаб 80%</option>
+          <option value="0.9">Масштаб 90%</option>
+          <option value="1" selected>Масштаб 100%</option>
+          <option value="1.1">Масштаб 110%</option>
+          <option value="1.2">Масштаб 120%</option>
+        </select>
+        <button class="btn" type="button" id="quickLoadTasksBtn">Оновити задачі</button>
+        <button class="btn good" type="button" id="quickDuplicateTemplateBtn">Дублювати шаблон</button>
+        <button class="btn primary" type="button" id="quickSaveEvaluationBtn">Зберегти оцінку</button>
+      </div>
+    </header>
+    <main class="workspace">
+      <section class="view active" id="evaluationView">
+        <div class="hero-grid">
+          <div class="card hero-card">
+            <div class="eyebrow">Оцінка виконання</div>
+            <div class="hero-title">Контроль якості задач співробітників</div>
+            <div class="hero-text">Форма дозволяє обрати задачу, оцінювача та шаблон КЛН, виставити бали по кожному критерію, отримати автоматичний підсумок і зберегти результат окремим TXT-файлом.</div>
+            <div class="chip-row">
+              <span class="chip">Джерело задач: `main_dashboard` storage</span>
+              <span class="chip">Шаблони: JSON</span>
+              <span class="chip">Оцінки: TXT</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-title">Підсумок</div>
+            <div class="score-box"><div><div class="score-main" id="finalScoreMain">0%</div><div class="score-sub" id="finalScoreSub">Оберіть задачу та шаблон для старту оцінки</div></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">Параметри Оцінки</div>
+          <div class="form-grid">
+            <div class="field span-2"><label class="label" for="taskSelect">Номер задачі</label><select id="taskSelect"></select></div>
+            <div class="field"><label class="label" for="evaluatorInput">Оцінювач</label><input id="evaluatorInput" type="text" placeholder="ПІБ оцінювача"></div>
+            <div class="field"><label class="label" for="templateSelect">Шаблон КЛН</label><select id="templateSelect"></select></div>
+            <div class="field span-2"><label class="label" for="executorOutput">Виконавець</label><input id="executorOutput" type="text" readonly placeholder="Автоматично з задачі"></div>
+            <div class="field"><label class="label" for="taskStatusOutput">Статус задачі</label><input id="taskStatusOutput" type="text" readonly></div>
+            <div class="field"><label class="label" for="taskDateOutput">Дата створення</label><input id="taskDateOutput" type="text" readonly></div>
+            <div class="field span-4"><label class="label" for="generalComment">Загальний коментар</label><textarea id="generalComment" placeholder="Підсумковий коментар до перевірки"></textarea></div>
+          </div>
+          <div class="btn-row" style="margin-top:14px">
+            <button class="btn" type="button" id="resetEvaluationBtn">Очистити форму</button>
+            <button class="btn primary" type="button" id="saveEvaluationBtn">Зберегти оцінку</button>
+          </div>
+        </div>
+        <div class="layout-2">
+          <div class="card list-card">
+            <div class="section-title">Список Задач</div>
+            <div class="list-toolbar">
+              <input id="taskSearchInput" type="text" placeholder="Пошук по №, назві, виконавцю">
+              <select id="taskExecutorFilter"></select>
+              <select id="taskStatusFilter"></select>
+            </div>
+            <div class="task-list scroll" id="taskList"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card"><div class="section-title">Деталі Задачі</div><div id="taskDetailPanel" class="empty">Оберіть задачу, щоб побачити її дані та почати оцінювання.</div></div>
+            <div class="card"><div class="section-title">Критерії Шаблону</div><div id="evaluationCriteria" class="empty">Оберіть шаблон КЛН, щоб з'явились блоки й критерії для оцінювання.</div></div>
+            <div class="summary-grid">
+              <div class="summary-card"><div class="k">Виконано критеріїв</div><div class="v" id="filledCriteriaCount">0</div><div class="s">Кількість критеріїв, де обрано % виконання.</div></div>
+              <div class="summary-card"><div class="k">Сума ваг</div><div class="v" id="weightCoverage">0</div><div class="s">Сумарний максимум балів шаблону, має бути рівно 100.</div></div>
+              <div class="summary-card"><div class="k">Поточний висновок</div><div class="v" id="gradeLabel">Немає</div><div class="s">Вага = максимум балів, оцінка = відсоток виконання.</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="templatesView">
+        <div class="layout-2">
+          <div class="card list-card">
+            <div class="section-title">Шаблони</div>
+            <div class="btn-row" style="margin-bottom:12px">
+              <button class="btn primary" type="button" id="newTemplateBtn">Новий шаблон</button>
+              <button class="btn" type="button" id="duplicateTemplateBtn">Дублювати</button>
+              <button class="btn danger" type="button" id="deleteTemplateBtn">Видалити</button>
+            </div>
+            <div class="template-list scroll" id="templateList"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card">
+              <div class="section-title">Редактор Шаблону</div>
+              <div class="template-header">
+                <div class="field"><label class="label" for="templateNameInput">Назва шаблону</label><input id="templateNameInput" type="text" placeholder="Наприклад: Базова перевірка IT-задач"></div>
+                <div class="field"><label class="label" for="templateStatusInput">Статус</label><select id="templateStatusInput"><option value="active">Активний</option><option value="draft">Чернетка</option><option value="archived">Архівний</option></select></div>
+              </div>
+              <div class="field" style="margin-top:12px"><label class="label" for="templateDescriptionInput">Опис</label><textarea id="templateDescriptionInput" placeholder="Що саме перевіряє цей шаблон"></textarea></div>
+              <div class="btn-row" style="margin-top:14px">
+                <button class="btn" type="button" id="addBlockBtn">Додати блок</button>
+                <button class="btn primary" type="button" id="saveTemplateBtn">Зберегти шаблон</button>
+              </div>
+            </div>
+            <div class="card"><div class="section-title">Блоки Та Критерії</div><div id="templateBlocksEditor" class="empty">Створіть новий шаблон або оберіть наявний, щоб редагувати його блоки й критерії.</div></div>
+          </div>
+        </div>
+      </section>
+      <section class="view" id="historyView">
+        <div class="stats-grid">
+          <div class="stat"><div class="k">Всього оцінок</div><div class="v" id="historyTotal">0</div><div class="s">Збережені оцінки в локальній історії.</div></div>
+          <div class="stat"><div class="k">Середній бал</div><div class="v" id="historyAverage">0%</div><div class="s">Середнє значення по всіх збереженнях.</div></div>
+          <div class="stat"><div class="k">Останній шаблон</div><div class="v" id="historyLastTemplate">-</div><div class="s">Назва шаблону останньої оцінки.</div></div>
+          <div class="stat"><div class="k">Остання дата</div><div class="v" id="historyLastDate">-</div><div class="s">Коли було збережено останню оцінку.</div></div>
+        </div>
+        <div class="layout-2">
+          <div class="card list-card">
+            <div class="section-title">Історія</div>
+            <div class="list-toolbar">
+              <input id="historySearchInput" type="text" placeholder="Пошук по задачі, виконавцю, шаблону">
+              <select id="historyTemplateFilter"></select>
+            </div>
+            <div class="history-list scroll" id="historyList"></div>
+          </div>
+          <div class="card"><div class="section-title">Деталі Оцінки</div><div id="historyDetailPanel" class="empty">Оберіть елемент історії, щоб побачити вміст збереженої оцінки.</div></div>
+        </div>
+      </section>
+
+      <section class="view" id="settingsView">
+        <div class="card">
+          <div class="section-title">Імпорт Задач</div>
+          <div class="form-grid">
+            <div class="field span-2"><label class="label" for="taskImportFile">Файл задач</label><input id="taskImportFile" type="file" accept=".txt,.tsv,.csv"></div>
+            <div class="field"><label class="label">&nbsp;</label><button class="btn" type="button" id="restoreTasksBtn">Відновити з localStorage</button></div>
+            <div class="field"><label class="label">&nbsp;</label><button class="btn" type="button" id="clearTasksBtn">Очистити локальні задачі</button></div>
+            <div class="field span-4"><label class="label" for="taskImportPaste">Вставка TSV/TXT</label><textarea id="taskImportPaste" placeholder="Можна вставити експорт задач напряму"></textarea></div>
+          </div>
+          <div class="btn-row" style="margin-top:14px"><button class="btn primary" type="button" id="applyTaskImportBtn">Імпортувати задачі</button></div>
+        </div>
+        <div class="card">
+          <div class="section-title">Папки Збереження</div>
+          <div class="detail-grid">
+            <div class="meta-box">
+              <div class="k">Шаблони КЛН</div>
+              <div class="v">
+                <div class="inline-actions">
+                  <button class="btn" type="button" id="pickTemplatesFolderBtn">Обрати папку</button>
+                  <button class="btn" type="button" id="reloadTemplatesFromFolderBtn">Підвантажити з папки</button>
+                </div>
+                <div style="margin-top:10px" id="templatesFolderPath"></div>
+              </div>
+            </div>
+            <div class="meta-box">
+              <div class="k">Оцінки</div>
+              <div class="v">
+                <div class="inline-actions">
+                  <button class="btn" type="button" id="pickEvaluationsFolderBtn">Обрати папку</button>
+                  <button class="btn" type="button" id="openHistoryFolderReloadBtn">Оновити історію</button>
+                </div>
+                <div style="margin-top:10px" id="evaluationsFolderPath"></div>
+              </div>
+            </div>
+          </div>
+          <div class="muted" style="margin-top:14px">Якщо браузер підтримує File System Access API, сторінка збереже JSON/TXT напряму у вибрані папки. Якщо ні, спрацює fallback через автоматичне завантаження окремих файлів з потрібними назвами.</div>
+        </div>
+        <div class="card">
+          <div class="section-title">Локальні Дані</div>
+          <div class="btn-row">
+            <button class="btn" type="button" id="exportTemplatesStateBtn">Експортувати локальні шаблони JSON</button>
+            <button class="btn" type="button" id="exportHistoryStateBtn">Експортувати локальну історію JSON</button>
+            <button class="btn danger" type="button" id="resetLocalStateBtn">Скинути локальні KLN-дані</button>
+          </div>
+        </div>
+        <div class="status-line" id="settingsStatus"></div>
+      </section>
+    </main>
+  </section>
+</div>
+<script src="./dashboard_config.js"></script>
+<script>
+const DASHBOARD_RUNTIME_CONFIG = window.DASHBOARD_CONFIG || {};
+const IMPORT_STORAGE_KEY = (DASHBOARD_RUNTIME_CONFIG.storageKeys && DASHBOARD_RUNTIME_CONFIG.storageKeys.imports) || 'sup_dashboard_imports_v1';
+const KLN_TEMPLATE_STORAGE_KEY = 'sup_kln_templates_v1';
+const KLN_EVAL_STORAGE_KEY = 'sup_kln_evaluations_v1';
+const KLN_SETTINGS_STORAGE_KEY = 'sup_kln_settings_v1';
+const KLN_ZOOM_STORAGE_KEY = 'sup_kln_zoom_v1';
+const HANDLE_DB_NAME = 'sup-kln-handles-db';
+const HANDLE_STORE_NAME = 'handles';
+
+const appState = {
+  tasks: [],
+  selectedTaskId: '',
+  templates: [],
+  selectedTemplateId: '',
+  evaluations: [],
+  selectedEvaluationId: '',
+  criterionScores: {},
+  currentView: 'evaluationView',
+  templateDraft: null,
+  selectedTemplateEditorId: '',
+  taskSearch: '',
+  taskExecutorFilter: '',
+  taskStatusFilter: '',
+  historySearch: '',
+  historyTemplateFilter: '',
+  folderHandles: { templates: null, evaluations: null },
+  folderMeta: { templates: '', evaluations: '' }
+};
+
+function uid(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+}
+
+function defaultTemplate() {
+  return {
+    id: uid('tpl'),
+    name: 'Базова перевірка IT-задач',
+    description: 'Стандартна перевірка якості виконання задачі по зрозумілості, термінах та результату.',
+    status: 'active',
+    updatedAt: new Date().toISOString(),
+    blocks: [
+      { id: uid('block'), name: 'Якість виконання', criteria: [
+        { id: uid('crit'), name: 'Коректність результату', description: 'Наскільки виконана задача відповідає запиту та не містить помилок.', weight: 40 },
+        { id: uid('crit'), name: 'Повнота виконання', description: 'Чи виконано всі очікувані дії без пропусків.', weight: 20 }
+      ]},
+      { id: uid('block'), name: 'Процес і комунікація', criteria: [
+        { id: uid('crit'), name: 'Дотримання термінів', description: 'Оцінка швидкості виконання та реакції по задачі.', weight: 20 },
+        { id: uid('crit'), name: 'Якість коментарів', description: 'Наскільки зрозуміло були відображені дії та результат.', weight: 20 }
+      ]}
+    ]
+  };
+}
+
+function cloneTemplate(template) {
+  if (!template) {
+    return { id: uid('tpl'), name: '', description: '', status: 'draft', updatedAt: new Date().toISOString(), blocks: [] };
+  }
+  return JSON.parse(JSON.stringify(template));
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function parseDate(s) {
+  if (!s || !String(s).trim()) return null;
+  const m = String(s).trim().match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
+  if (!m) return null;
+  return new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return d.toLocaleString('uk-UA', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function statusLabel(status) {
+  return ({ active:'Активний', draft:'Чернетка', archived:'Архівний' }[status] || status || '—');
+}
+
+function scoreLabel(percent) {
+  if (percent >= 90) return 'Відмінно';
+  if (percent >= 75) return 'Добре';
+  if (percent >= 60) return 'Потребує уваги';
+  if (percent > 0) return 'Критично';
+  return 'Немає';
+}
+
+function applyZoom(value) {
+  const normalized = ['0.8','0.9','1','1.1','1.2'].includes(String(value)) ? String(value) : '1';
+  document.documentElement.style.setProperty('--page-scale', normalized);
+  try { localStorage.setItem(KLN_ZOOM_STORAGE_KEY, normalized); } catch (error) {}
+  const select = document.getElementById('zoomSelect');
+  if (select) select.value = normalized;
+}
+
+function parseRaw(text) {
+  return String(text || '').trim().split(/\r?\n/).map(line => {
+    const p = line.split('\t');
+    if (p.length < 3) return null;
+    const num = (p[0] || '').trim();
+    if (!num || Number.isNaN(+num)) return null;
+    return {
+      num,
+      title: (p[1] || '').trim(),
+      status: (p[2] || '').trim(),
+      group: (p[3] || '').trim(),
+      author: (p[4] || '').trim(),
+      executor: (p[5] || '').trim(),
+      dateExec: parseDate(p[6]),
+      dateFinished: parseDate(p[7]),
+      dateCreated: parseDate(p[8]),
+      ftrAssigned: parseDate(p[9]),
+      ftrAnswer: parseDate(p[10]),
+      sourceName: 'main_dashboard'
+    };
+  }).filter(Boolean).sort((a,b) => (+b.num) - (+a.num));
+}
+
+function getTaskById(id) {
+  return appState.tasks.find(task => task.num === id) || null;
+}
+
+function getTemplateById(id) {
+  return appState.templates.find(template => template.id === id) || null;
+}
+
+function getSelectedTask() {
+  return getTaskById(appState.selectedTaskId);
+}
+
+function getSelectedTemplate() {
+  return getTemplateById(appState.selectedTemplateId);
+}
+
+function criteriaFromTemplate(template) {
+  return (template?.blocks || []).flatMap(block => (block.criteria || []).map(criterion => ({ ...criterion, blockName: block.name })));
+}
+
+function templateWeightTotal(template) {
+  return criteriaFromTemplate(template).reduce((sum, criterion) => sum + (Number(criterion.weight) || 0), 0);
+}
+
+function computeEvaluationSummary() {
+  const criteria = criteriaFromTemplate(getSelectedTemplate());
+  let weighted = 0;
+  let totalWeight = 0;
+  let filled = 0;
+  criteria.forEach(criterion => {
+    const weight = Number(criterion.weight) || 0;
+    totalWeight += weight;
+    const payload = appState.criterionScores[criterion.id] || {};
+    if (payload.score === '' || payload.score === undefined || payload.score === null || Number.isNaN(Number(payload.score))) return;
+    filled += 1;
+    weighted += (Number(payload.score) / 100) * weight;
+  });
+  return { percent: totalWeight ? Math.round((weighted / totalWeight) * 100) : 0, filled, totalWeight };
+}
+
+function saveLocalState() {
+  try {
+    localStorage.setItem(KLN_TEMPLATE_STORAGE_KEY, JSON.stringify(appState.templates));
+    localStorage.setItem(KLN_EVAL_STORAGE_KEY, JSON.stringify(appState.evaluations));
+    localStorage.setItem(KLN_SETTINGS_STORAGE_KEY, JSON.stringify(appState.folderMeta));
+  } catch (error) {}
+}
+
+function loadLocalState() {
+  try { appState.templates = JSON.parse(localStorage.getItem(KLN_TEMPLATE_STORAGE_KEY) || '[]'); } catch (error) { appState.templates = []; }
+  try { appState.evaluations = JSON.parse(localStorage.getItem(KLN_EVAL_STORAGE_KEY) || '[]'); } catch (error) { appState.evaluations = []; }
+  try { appState.folderMeta = JSON.parse(localStorage.getItem(KLN_SETTINGS_STORAGE_KEY) || '{"templates":"","evaluations":""}'); } catch (error) {}
+  if (!appState.templates.length) appState.templates = [defaultTemplate()];
+  appState.selectedTemplateId = appState.templates[0]?.id || '';
+  appState.selectedTemplateEditorId = appState.selectedTemplateId;
+  appState.templateDraft = cloneTemplate(getTemplateById(appState.selectedTemplateEditorId));
+}
+
+function loadTaskImportsFromStorage() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(IMPORT_STORAGE_KEY) || '[]');
+    if (!Array.isArray(stored) || !stored.length) return false;
+    const tasks = [];
+    stored.forEach(entry => {
+      parseRaw(entry.text || '').forEach(task => {
+        task.sourceName = entry.name || 'main_dashboard';
+        tasks.push(task);
+      });
+    });
+    if (!tasks.length) return false;
+    appState.tasks = tasks.sort((a,b) => (+b.num) - (+a.num));
+    if (!appState.selectedTaskId && appState.tasks[0]) appState.selectedTaskId = appState.tasks[0].num;
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function persistTaskImports(entries) {
+  try { localStorage.setItem(IMPORT_STORAGE_KEY, JSON.stringify(entries)); } catch (error) {}
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = event => resolve(event.target.result);
+    reader.onerror = reject;
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+function setSettingsStatus(kind, text) {
+  const el = document.getElementById('settingsStatus');
+  el.className = `status-line show ${kind}`;
+  el.textContent = text;
+}
+
+function setView(viewId) {
+  appState.currentView = viewId;
+  document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === viewId));
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.viewBtn === viewId));
+  const meta = {
+    evaluationView: ['Оцінка задач', 'Перевірка конкретної задачі за блоками, критеріями та вагами.'],
+    templatesView: ['Шаблони КЛН', 'Редагування JSON-шаблонів без ручних змін у HTML-коді.'],
+    historyView: ['Історія оцінок', 'Перегляд усіх збережених результатів оцінювання.'],
+    settingsView: ['Налаштування', 'Імпорт задач, підключення папок і керування локальними даними.']
+  };
+  document.getElementById('pageTitle').textContent = meta[viewId][0];
+  document.getElementById('pageSubtitle').textContent = meta[viewId][1];
+}
+
+async function openHandleDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(HANDLE_DB_NAME, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(HANDLE_STORE_NAME);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function storeHandle(key, handle) {
+  const db = await openHandleDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(HANDLE_STORE_NAME, 'readwrite');
+    tx.objectStore(HANDLE_STORE_NAME).put(handle, key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function restoreHandle(key) {
+  const db = await openHandleDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(HANDLE_STORE_NAME, 'readonly');
+    const req = tx.objectStore(HANDLE_STORE_NAME).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function verifyHandlePermission(handle) {
+  if (!handle || !handle.queryPermission) return false;
+  let permission = await handle.queryPermission({ mode: 'readwrite' });
+  if (permission === 'granted') return true;
+  permission = await handle.requestPermission({ mode: 'readwrite' });
+  return permission === 'granted';
+}
+
+async function restoreFolderHandles() {
+  for (const kind of ['templates', 'evaluations']) {
+    try {
+      const handle = await restoreHandle(`folder_${kind}`);
+      if (!handle) continue;
+      const permission = await handle.queryPermission({ mode: 'readwrite' });
+      if (permission === 'granted') {
+        appState.folderHandles[kind] = handle;
+        if (!appState.folderMeta[kind]) appState.folderMeta[kind] = handle.name || '';
+      }
+    } catch (error) {}
+  }
+  renderFolderPaths();
+}
+
+function renderFolderPaths() {
+  document.getElementById('templatesFolderPath').innerHTML = appState.folderMeta.templates ? `<span class="path-pill">${escapeHtml(appState.folderMeta.templates)}</span>` : '<span class="muted">Папку ще не обрано</span>';
+  document.getElementById('evaluationsFolderPath').innerHTML = appState.folderMeta.evaluations ? `<span class="path-pill">${escapeHtml(appState.folderMeta.evaluations)}</span>` : '<span class="muted">Папку ще не обрано</span>';
+}
+
+async function pickFolder(kind) {
+  if (!window.showDirectoryPicker) {
+    setSettingsStatus('error', 'Ваш браузер не підтримує прямий вибір папки. Буде використовуватись завантаження файлів.');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker();
+    if (!(await verifyHandlePermission(handle))) {
+      setSettingsStatus('error', 'Не вдалося отримати дозвіл на запис у папку.');
+      return;
+    }
+    appState.folderHandles[kind] = handle;
+    appState.folderMeta[kind] = handle.name || '';
+    await storeHandle(`folder_${kind}`, handle);
+    saveLocalState();
+    renderFolderPaths();
+    setSettingsStatus('success', `Папку для "${kind === 'templates' ? 'шаблонів' : 'оцінок'}" підключено: ${handle.name}`);
+    if (kind === 'templates') await loadTemplatesFromFolder();
+  } catch (error) {
+    setSettingsStatus('error', `Вибір папки скасовано або недоступний: ${error.message}`);
+  }
+}
+
+async function writeTextFileToFolder(handle, fileName, content) {
+  const fileHandle = await handle.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
+
+function triggerDownload(fileName, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+function buildTemplateFileName(template) {
+  const safe = (template.name || template.id).toLowerCase().replace(/[^a-zа-яіїєґ0-9]+/gi, '_').replace(/^_+|_+$/g, '').slice(0, 60) || template.id;
+  return `template_${safe}.json`;
+}
+
+function buildEvaluationFileName(evaluation) {
+  const stamp = new Date(evaluation.createdAt);
+  const d = [stamp.getFullYear(), String(stamp.getMonth()+1).padStart(2,'0'), String(stamp.getDate()).padStart(2,'0')].join('-');
+  const t = [String(stamp.getHours()).padStart(2,'0'), String(stamp.getMinutes()).padStart(2,'0'), String(stamp.getSeconds()).padStart(2,'0')].join('-');
+  return `evaluation_${d}_${t}_${evaluation.taskId}.txt`;
+}
+
+function templateToFile(template) {
+  return JSON.stringify({
+    name: template.name,
+    description: template.description,
+    status: template.status,
+    blocks: template.blocks.map(block => ({
+      name: block.name,
+      criteria: block.criteria.map(criterion => ({
+        name: criterion.name,
+        description: criterion.description,
+        weight: Number(criterion.weight) || 0
+      }))
+    }))
+  }, null, 2);
+}
+
+function evaluationToText(evaluation) {
+  return [
+    `номер задачі: ${evaluation.taskId}`,
+    `назва задачі: ${evaluation.taskTitle}`,
+    `виконавець: ${evaluation.executor || '—'}`,
+    `оцінювач: ${evaluation.evaluator || '—'}`,
+    `дата: ${fmtDate(new Date(evaluation.createdAt))}`,
+    `шаблон: ${evaluation.templateName}`,
+    '',
+    'блоки:',
+    ...evaluation.blocks.flatMap(block => [
+      `  блок: ${block.name}`,
+      ...block.criteria.flatMap(criterion => [
+        `    критерій: ${criterion.name}`,
+        `    опис: ${criterion.description || '—'}`,
+        `    вага: ${criterion.weight}`,
+        `    оцінка: ${criterion.score}`,
+        `    коментар: ${criterion.comment || '—'}`,
+        ''
+      ])
+    ]),
+    `підсумковий бал: ${evaluation.finalScore}%`,
+    `загальний коментар: ${evaluation.generalComment || '—'}`
+  ].join('\n');
+}
+
+async function saveTemplateFile(template) {
+  const fileName = buildTemplateFileName(template);
+  const content = templateToFile(template);
+  try {
+    const handle = appState.folderHandles.templates;
+    if (handle && await verifyHandlePermission(handle)) {
+      await writeTextFileToFolder(handle, fileName, content);
+      setSettingsStatus('success', `Шаблон збережено у папку як ${fileName}`);
+      return;
+    }
+  } catch (error) {
+    setSettingsStatus('error', `Не вдалося записати шаблон у папку: ${error.message}`);
+  }
+  triggerDownload(fileName, content, 'application/json;charset=utf-8');
+  setSettingsStatus('info', `Шаблон завантажено файлом ${fileName}`);
+}
+
+async function saveEvaluationFile(evaluation) {
+  const fileName = buildEvaluationFileName(evaluation);
+  const content = evaluationToText(evaluation);
+  try {
+    const handle = appState.folderHandles.evaluations;
+    if (handle && await verifyHandlePermission(handle)) {
+      await writeTextFileToFolder(handle, fileName, content);
+      setSettingsStatus('success', `Оцінку збережено у папку як ${fileName}`);
+      return;
+    }
+  } catch (error) {
+    setSettingsStatus('error', `Не вдалося записати оцінку у папку: ${error.message}`);
+  }
+  triggerDownload(fileName, content, 'text/plain;charset=utf-8');
+  setSettingsStatus('info', `Оцінку завантажено окремим файлом ${fileName}`);
+}
+
+async function loadTemplatesFromFolder() {
+  const handle = appState.folderHandles.templates;
+  if (!handle) {
+    setSettingsStatus('info', 'Спочатку оберіть папку шаблонів.');
+    return;
+  }
+  try {
+    const templates = [];
+    for await (const entry of handle.values()) {
+      if (entry.kind !== 'file' || !/^template_.*\.json$/i.test(entry.name)) continue;
+      const file = await entry.getFile();
+      const json = JSON.parse(await file.text());
+      templates.push({
+        id: uid('tpl'),
+        name: json.name || entry.name,
+        description: json.description || '',
+        status: json.status || 'draft',
+        updatedAt: new Date(file.lastModified).toISOString(),
+        blocks: (json.blocks || []).map(block => ({
+          id: uid('block'),
+          name: block.name || 'Новий блок',
+          criteria: (block.criteria || []).map(criterion => ({
+            id: uid('crit'),
+            name: criterion.name || 'Новий критерій',
+            description: criterion.description || '',
+            weight: Number(criterion.weight) || 0
+          }))
+        }))
+      });
+    }
+    if (!templates.length) {
+      setSettingsStatus('info', 'У папці шаблонів не знайдено файлів `template_*.json`.');
+      return;
+    }
+    appState.templates = templates;
+    appState.selectedTemplateId = templates[0].id;
+    appState.selectedTemplateEditorId = templates[0].id;
+    appState.templateDraft = cloneTemplate(templates[0]);
+    saveLocalState();
+    renderAll();
+    setSettingsStatus('success', `Підвантажено ${templates.length} шаблон(ів) з папки.`);
+  } catch (error) {
+    setSettingsStatus('error', `Не вдалося зчитати шаблони з папки: ${error.message}`);
+  }
+}
+
+function renderTaskOptions() {
+  const taskSelect = document.getElementById('taskSelect');
+  if (!appState.tasks.length) {
+    taskSelect.innerHTML = '<option value="">Немає задач</option>';
+    return;
+  }
+  taskSelect.innerHTML = '<option value="">Оберіть задачу</option>' + appState.tasks.map(task => `<option value="${task.num}">#${task.num} — ${escapeHtml(task.title)}</option>`).join('');
+  taskSelect.value = appState.selectedTaskId || '';
+}
+
+function renderTaskFilters() {
+  const executorFilter = document.getElementById('taskExecutorFilter');
+  const statusFilter = document.getElementById('taskStatusFilter');
+  const executors = [...new Set(appState.tasks.map(task => task.executor).filter(Boolean))].sort();
+  const statuses = [...new Set(appState.tasks.map(task => task.status).filter(Boolean))].sort();
+  executorFilter.innerHTML = '<option value="">Усі виконавці</option>' + executors.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+  statusFilter.innerHTML = '<option value="">Усі статуси</option>' + statuses.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+  executorFilter.value = appState.taskExecutorFilter;
+  statusFilter.value = appState.taskStatusFilter;
+}
+
+function filteredTasks() {
+  return appState.tasks.filter(task => {
+    if (appState.taskExecutorFilter && task.executor !== appState.taskExecutorFilter) return false;
+    if (appState.taskStatusFilter && task.status !== appState.taskStatusFilter) return false;
+    const q = appState.taskSearch.trim().toLowerCase();
+    if (!q) return true;
+    return [task.num, task.title, task.executor, task.author, task.group].some(value => String(value || '').toLowerCase().includes(q));
+  });
+}
+
+function renderTaskList() {
+  const list = document.getElementById('taskList');
+  const tasks = filteredTasks();
+  if (!tasks.length) {
+    list.innerHTML = '<div class="empty">По заданих фільтрах задач не знайдено.</div>';
+    return;
+  }
+  list.innerHTML = tasks.map(task => `
+    <div class="task-item ${task.num === appState.selectedTaskId ? 'active' : ''}" data-task-id="${task.num}">
+      <div class="item-top">
+        <div><div class="item-title">#${escapeHtml(task.num)} — ${escapeHtml(task.title)}</div><div class="item-sub">${escapeHtml(task.executor || 'Без виконавця')} • ${escapeHtml(task.group || 'Без групи')}</div></div>
+        <span class="badge ${task.status === 'Завершене' ? 'good' : 'info'}">${escapeHtml(task.status || '—')}</span>
+      </div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-task-id]').forEach(node => node.addEventListener('click', () => {
+    appState.selectedTaskId = node.dataset.taskId;
+    syncTaskToForm();
+    renderEvaluationView();
+  }));
+}
+
+function syncTaskToForm() {
+  const task = getSelectedTask();
+  document.getElementById('taskSelect').value = task?.num || '';
+  document.getElementById('executorOutput').value = task?.executor || '';
+  document.getElementById('taskStatusOutput').value = task?.status || '';
+  document.getElementById('taskDateOutput').value = task?.dateCreated ? fmtDate(task.dateCreated) : '';
+}
+
+function renderTaskDetail() {
+  const panel = document.getElementById('taskDetailPanel');
+  const task = getSelectedTask();
+  if (!task) {
+    panel.className = 'empty';
+    panel.innerHTML = 'Оберіть задачу, щоб побачити її дані та почати оцінювання.';
+    return;
+  }
+  panel.className = '';
+  panel.innerHTML = `
+    <div class="detail-grid">
+      <div class="meta-box"><div class="k">Номер</div><div class="v">#${escapeHtml(task.num)}</div></div>
+      <div class="meta-box"><div class="k">Статус</div><div class="v">${escapeHtml(task.status || '—')}</div></div>
+      <div class="meta-box"><div class="k">Назва</div><div class="v">${escapeHtml(task.title || '—')}</div></div>
+      <div class="meta-box"><div class="k">Виконавець</div><div class="v">${escapeHtml(task.executor || '—')}</div></div>
+      <div class="meta-box"><div class="k">Постановник</div><div class="v">${escapeHtml(task.author || '—')}</div></div>
+      <div class="meta-box"><div class="k">Дата створення</div><div class="v">${escapeHtml(fmtDate(task.dateCreated))}</div></div>
+      <div class="meta-box"><div class="k">Дата виконання</div><div class="v">${escapeHtml(fmtDate(task.dateExec))}</div></div>
+      <div class="meta-box"><div class="k">Дата завершення</div><div class="v">${escapeHtml(fmtDate(task.dateFinished))}</div></div>
+    </div>
+  `;
+}
+
+function renderTemplateOptions() {
+  const select = document.getElementById('templateSelect');
+  const activeTemplates = appState.templates.filter(template => template.status !== 'archived');
+  if (!activeTemplates.length) {
+    select.innerHTML = '<option value="">Немає активних шаблонів</option>';
+    return;
+  }
+  if (!activeTemplates.some(template => template.id === appState.selectedTemplateId)) appState.selectedTemplateId = activeTemplates[0].id;
+  select.innerHTML = activeTemplates.map(template => `<option value="${template.id}">${escapeHtml(template.name)}</option>`).join('');
+  select.value = appState.selectedTemplateId;
+}
+
+function renderCriteriaEditor() {
+  const panel = document.getElementById('evaluationCriteria');
+  const template = getSelectedTemplate();
+  if (!template) {
+    panel.className = 'empty';
+    panel.innerHTML = 'Оберіть шаблон КЛН, щоб з\'явились блоки й критерії для оцінювання.';
+    return;
+  }
+  panel.className = 'block-list';
+  panel.innerHTML = template.blocks.length ? template.blocks.map(block => `
+    <div class="block-card">
+      <div class="block-top"><div class="block-name">${escapeHtml(block.name)}</div><span class="badge info">${(block.criteria || []).length} критеріїв</span></div>
+      <div class="criteria-list">
+        ${(block.criteria || []).map(criterion => {
+          const state = appState.criterionScores[criterion.id] || { score: '', comment: '' };
+          return `
+            <div class="criterion">
+              <div class="criterion-head"><div class="criterion-name">${escapeHtml(criterion.name)}</div><span class="badge draft">вага ${Number(criterion.weight) || 0}</span></div>
+              <div class="criterion-desc">${escapeHtml(criterion.description || 'Опис відсутній')}</div>
+              <div class="criterion-grid">
+                <div class="field">
+                  <label class="label">Виконання</label>
+                  <select data-score-id="${criterion.id}">
+                    <option value="">Оберіть %</option>
+                    <option value="0" ${String(state.score) === '0' ? 'selected' : ''}>0%</option>
+                    <option value="50" ${String(state.score) === '50' ? 'selected' : ''}>50%</option>
+                    <option value="100" ${String(state.score) === '100' ? 'selected' : ''}>100%</option>
+                  </select>
+                </div>
+                <div class="field"><label class="label">Макс. балів</label><input type="text" value="${Number(criterion.weight) || 0}" readonly></div>
+                <div class="field"><label class="label">Коментар</label><textarea data-comment-id="${criterion.id}" placeholder="Коментар по критерію">${escapeHtml(state.comment || '')}</textarea></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `).join('') : '<div class="empty">У цьому шаблоні ще немає блоків або критеріїв.</div>';
+
+  panel.querySelectorAll('[data-score-id]').forEach(input => input.addEventListener('change', () => {
+    const criterionId = input.dataset.scoreId;
+    appState.criterionScores[criterionId] = { ...(appState.criterionScores[criterionId] || {}), score: input.value === '' ? '' : Number(input.value) };
+    renderEvaluationSummary();
+  }));
+  panel.querySelectorAll('[data-comment-id]').forEach(input => input.addEventListener('input', () => {
+    const criterionId = input.dataset.commentId;
+    appState.criterionScores[criterionId] = { ...(appState.criterionScores[criterionId] || {}), comment: input.value };
+  }));
+}
+
+function renderEvaluationSummary() {
+  const summary = computeEvaluationSummary();
+  const isValidWeight = summary.totalWeight === 100;
+  document.getElementById('finalScoreMain').textContent = `${summary.percent}%`;
+  document.getElementById('finalScoreSub').textContent = !summary.totalWeight
+    ? 'Шаблон не містить критеріїв'
+    : !isValidWeight
+      ? `Сума ваг шаблону має бути рівно 100, зараз ${summary.totalWeight}`
+      : `Заповнено ${summary.filled} з ${criteriaFromTemplate(getSelectedTemplate()).length} критеріїв`;
+  document.getElementById('filledCriteriaCount').textContent = String(summary.filled);
+  document.getElementById('weightCoverage').textContent = `${summary.totalWeight}/100`;
+  document.getElementById('gradeLabel').textContent = isValidWeight ? scoreLabel(summary.percent) : 'Шаблон невалідний';
+}
+
+function renderEvaluationView() {
+  renderTaskOptions();
+  renderTaskFilters();
+  renderTaskList();
+  renderTaskDetail();
+  renderTemplateOptions();
+  syncTaskToForm();
+  renderCriteriaEditor();
+  renderEvaluationSummary();
+}
+
+function renderTemplateList() {
+  const list = document.getElementById('templateList');
+  if (!appState.templates.length) {
+    list.innerHTML = '<div class="empty">Шаблонів ще немає.</div>';
+    return;
+  }
+  list.innerHTML = appState.templates.map(template => `
+    <div class="template-item ${template.id === appState.selectedTemplateEditorId ? 'active' : ''}" data-template-id="${template.id}">
+      <div class="item-top">
+        <div><div class="item-title">${escapeHtml(template.name || 'Без назви')}</div><div class="item-sub">${escapeHtml(template.description || 'Опис відсутній')}</div></div>
+        <span class="badge ${template.status === 'active' ? 'good' : template.status === 'draft' ? 'draft' : 'archived'}">${escapeHtml(statusLabel(template.status))}</span>
+      </div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-template-id]').forEach(node => node.addEventListener('click', () => {
+    appState.selectedTemplateEditorId = node.dataset.templateId;
+    appState.templateDraft = cloneTemplate(getTemplateById(appState.selectedTemplateEditorId));
+    renderTemplatesView();
+  }));
+}
+
+function findDraftCriterion(id) {
+  for (const block of (appState.templateDraft?.blocks || [])) {
+    const criterion = block.criteria.find(item => item.id === id);
+    if (criterion) return criterion;
+  }
+  return null;
+}
+
+function renderTemplateDraftForm() {
+  const draft = appState.templateDraft;
+  document.getElementById('templateNameInput').value = draft?.name || '';
+  document.getElementById('templateDescriptionInput').value = draft?.description || '';
+  document.getElementById('templateStatusInput').value = draft?.status || 'draft';
+}
+
+function renderTemplateBlocksEditor() {
+  const panel = document.getElementById('templateBlocksEditor');
+  const draft = appState.templateDraft;
+  if (!draft) {
+    panel.className = 'empty';
+    panel.innerHTML = 'Оберіть шаблон або створіть новий.';
+    return;
+  }
+  if (!draft.blocks.length) {
+    panel.className = 'empty';
+    panel.innerHTML = 'У шаблоні ще немає блоків. Натисніть "Додати блок".';
+    return;
+  }
+  panel.className = 'block-list';
+  panel.innerHTML = draft.blocks.map(block => `
+    <div class="block-card">
+      <div class="block-top">
+        <input type="text" value="${escapeHtml(block.name)}" data-block-name="${block.id}" placeholder="Назва блоку">
+        <div class="inline-actions">
+          <button class="btn" type="button" data-add-criterion="${block.id}">Додати критерій</button>
+          <button class="btn danger" type="button" data-delete-block="${block.id}">Видалити блок</button>
+        </div>
+      </div>
+      <div class="criteria-list">
+        ${(block.criteria || []).map(criterion => `
+          <div class="criterion">
+            <div class="criterion-grid" style="grid-template-columns:minmax(0,1fr) 120px 120px;">
+              <div class="field"><label class="label">Назва критерію</label><input type="text" value="${escapeHtml(criterion.name)}" data-criterion-name="${criterion.id}" placeholder="Назва критерію"></div>
+              <div class="field"><label class="label">Вага</label><input type="number" min="0" step="1" value="${Number(criterion.weight) || 0}" data-criterion-weight="${criterion.id}"></div>
+              <div class="field"><label class="label">&nbsp;</label><button class="btn danger" type="button" data-delete-criterion="${criterion.id}">Видалити</button></div>
+            </div>
+            <div class="field" style="margin-top:10px"><label class="label">Опис критерію</label><textarea data-criterion-description="${criterion.id}" placeholder="Опис критерію">${escapeHtml(criterion.description || '')}</textarea></div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  panel.querySelectorAll('[data-block-name]').forEach(input => input.addEventListener('input', () => {
+    const block = draft.blocks.find(item => item.id === input.dataset.blockName);
+    if (block) block.name = input.value;
+  }));
+  panel.querySelectorAll('[data-add-criterion]').forEach(btn => btn.addEventListener('click', () => {
+    const block = draft.blocks.find(item => item.id === btn.dataset.addCriterion);
+    if (!block) return;
+    block.criteria.push({ id: uid('crit'), name: '', description: '', weight: 0 });
+    renderTemplatesView();
+  }));
+  panel.querySelectorAll('[data-delete-block]').forEach(btn => btn.addEventListener('click', () => {
+    draft.blocks = draft.blocks.filter(item => item.id !== btn.dataset.deleteBlock);
+    renderTemplatesView();
+  }));
+  panel.querySelectorAll('[data-criterion-name]').forEach(input => input.addEventListener('input', () => {
+    const criterion = findDraftCriterion(input.dataset.criterionName);
+    if (criterion) criterion.name = input.value;
+  }));
+  panel.querySelectorAll('[data-criterion-weight]').forEach(input => input.addEventListener('input', () => {
+    const criterion = findDraftCriterion(input.dataset.criterionWeight);
+    if (criterion) criterion.weight = Math.max(0, Number(input.value) || 0);
+  }));
+  panel.querySelectorAll('[data-criterion-description]').forEach(input => input.addEventListener('input', () => {
+    const criterion = findDraftCriterion(input.dataset.criterionDescription);
+    if (criterion) criterion.description = input.value;
+  }));
+  panel.querySelectorAll('[data-delete-criterion]').forEach(btn => btn.addEventListener('click', () => {
+    draft.blocks.forEach(block => block.criteria = block.criteria.filter(item => item.id !== btn.dataset.deleteCriterion));
+    renderTemplatesView();
+  }));
+}
+
+function renderTemplatesView() {
+  renderTemplateList();
+  renderTemplateDraftForm();
+  renderTemplateBlocksEditor();
+}
+
+function filteredHistory() {
+  return appState.evaluations.filter(item => {
+    if (appState.historyTemplateFilter && item.templateName !== appState.historyTemplateFilter) return false;
+    const q = appState.historySearch.trim().toLowerCase();
+    if (!q) return true;
+    return [item.taskId, item.taskTitle, item.executor, item.evaluator, item.templateName].some(value => String(value || '').toLowerCase().includes(q));
+  }).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function renderHistoryStats() {
+  const total = appState.evaluations.length;
+  const avg = total ? Math.round(appState.evaluations.reduce((sum, item) => sum + Number(item.finalScore || 0), 0) / total) : 0;
+  const last = [...appState.evaluations].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  document.getElementById('historyTotal').textContent = String(total);
+  document.getElementById('historyAverage').textContent = `${avg}%`;
+  document.getElementById('historyLastTemplate').textContent = last?.templateName || '-';
+  document.getElementById('historyLastDate').textContent = last ? fmtDate(new Date(last.createdAt)) : '-';
+  const filter = document.getElementById('historyTemplateFilter');
+  const names = [...new Set(appState.evaluations.map(item => item.templateName).filter(Boolean))].sort();
+  filter.innerHTML = '<option value="">Усі шаблони</option>' + names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+  filter.value = appState.historyTemplateFilter;
+}
+
+function renderHistoryList() {
+  const list = document.getElementById('historyList');
+  const items = filteredHistory();
+  if (!items.length) {
+    list.innerHTML = '<div class="empty">Історія оцінок поки порожня.</div>';
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <div class="history-item ${item.id === appState.selectedEvaluationId ? 'active' : ''}" data-eval-id="${item.id}">
+      <div class="item-top">
+        <div><div class="item-title">#${escapeHtml(item.taskId)} — ${escapeHtml(item.taskTitle)}</div><div class="item-sub">${escapeHtml(item.executor || '—')} • ${escapeHtml(item.templateName)} • ${escapeHtml(fmtDate(new Date(item.createdAt)))}</div></div>
+        <span class="badge ${Number(item.finalScore) >= 75 ? 'good' : 'warn'}">${Number(item.finalScore)}%</span>
+      </div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-eval-id]').forEach(node => node.addEventListener('click', () => {
+    appState.selectedEvaluationId = node.dataset.evalId;
+    renderHistoryView();
+  }));
+}
+
+function renderHistoryDetail() {
+  const panel = document.getElementById('historyDetailPanel');
+  const item = appState.evaluations.find(entry => entry.id === appState.selectedEvaluationId);
+  if (!item) {
+    panel.className = 'empty';
+    panel.innerHTML = 'Оберіть елемент історії, щоб побачити вміст збереженої оцінки.';
+    return;
+  }
+  panel.className = '';
+  panel.innerHTML = `
+    <div class="detail-grid">
+      <div class="meta-box"><div class="k">Задача</div><div class="v">#${escapeHtml(item.taskId)} — ${escapeHtml(item.taskTitle)}</div></div>
+      <div class="meta-box"><div class="k">Шаблон</div><div class="v">${escapeHtml(item.templateName)}</div></div>
+      <div class="meta-box"><div class="k">Виконавець</div><div class="v">${escapeHtml(item.executor || '—')}</div></div>
+      <div class="meta-box"><div class="k">Оцінювач</div><div class="v">${escapeHtml(item.evaluator || '—')}</div></div>
+      <div class="meta-box"><div class="k">Підсумок</div><div class="v">${Number(item.finalScore)}% • ${escapeHtml(scoreLabel(Number(item.finalScore)))}</div></div>
+      <div class="meta-box"><div class="k">Дата</div><div class="v">${escapeHtml(fmtDate(new Date(item.createdAt)))}</div></div>
+    </div>
+    <div class="card" style="padding:14px;margin-top:14px"><div class="section-title">Коментар</div><div class="muted">${escapeHtml(item.generalComment || 'Коментар відсутній')}</div></div>
+    <div class="block-list" style="margin-top:14px">
+      ${item.blocks.map(block => `<div class="block-card"><div class="block-name">${escapeHtml(block.name)}</div><div class="criteria-list" style="margin-top:10px">${block.criteria.map(criterion => `<div class="criterion"><div class="criterion-head"><div class="criterion-name">${escapeHtml(criterion.name)}</div><span class="badge info">${criterion.score}% / вага ${criterion.weight}</span></div><div class="criterion-desc">${escapeHtml(criterion.description || 'Опис відсутній')}</div><div class="muted">${escapeHtml(criterion.comment || 'Коментар відсутній')}</div></div>`).join('')}</div></div>`).join('')}
+    </div>
+  `;
+}
+
+function renderHistoryView() {
+  renderHistoryStats();
+  renderHistoryList();
+  renderHistoryDetail();
+}
+
+function renderSidebarStats() {
+  const avg = appState.evaluations.length ? Math.round(appState.evaluations.reduce((sum, item) => sum + Number(item.finalScore || 0), 0) / appState.evaluations.length) : 0;
+  document.getElementById('sideTaskCount').textContent = String(appState.tasks.length);
+  document.getElementById('sideTemplateCount').textContent = String(appState.templates.length);
+  document.getElementById('sideEvaluationCount').textContent = String(appState.evaluations.length);
+  document.getElementById('sideAvgScore').textContent = `${avg}%`;
+}
+
+function renderAll() {
+  renderEvaluationView();
+  renderTemplatesView();
+  renderHistoryView();
+  renderFolderPaths();
+  renderSidebarStats();
+}
+
+function sanitizeTemplateDraft() {
+  const draft = appState.templateDraft;
+  draft.name = document.getElementById('templateNameInput').value.trim();
+  draft.description = document.getElementById('templateDescriptionInput').value.trim();
+  draft.status = document.getElementById('templateStatusInput').value;
+  draft.updatedAt = new Date().toISOString();
+  draft.blocks = (draft.blocks || []).map(block => ({
+    ...block,
+    name: String(block.name || '').trim() || 'Новий блок',
+    criteria: (block.criteria || []).map(criterion => ({
+      ...criterion,
+      name: String(criterion.name || '').trim() || 'Новий критерій',
+      description: String(criterion.description || '').trim(),
+      weight: Math.max(0, Number(criterion.weight) || 0)
+    }))
+  }));
+  if (!draft.name) throw new Error('Вкажіть назву шаблону.');
+  const totalWeight = templateWeightTotal(draft);
+  if (totalWeight !== 100) {
+    throw new Error(`Сума ваг у шаблоні має бути рівно 100. Зараз: ${totalWeight}.`);
+  }
+}
+
+async function saveTemplate() {
+  try {
+    sanitizeTemplateDraft();
+    const draft = cloneTemplate(appState.templateDraft);
+    const index = appState.templates.findIndex(template => template.id === draft.id);
+    if (index >= 0) appState.templates[index] = draft; else appState.templates.unshift(draft);
+    appState.selectedTemplateEditorId = draft.id;
+    appState.selectedTemplateId = draft.status === 'archived' ? (appState.templates.find(item => item.status !== 'archived')?.id || '') : draft.id;
+    saveLocalState();
+    await saveTemplateFile(draft);
+    renderAll();
+  } catch (error) {
+    setSettingsStatus('error', error.message);
+  }
+}
+
+function createNewTemplate() {
+  appState.templateDraft = cloneTemplate(null);
+  appState.selectedTemplateEditorId = appState.templateDraft.id;
+  renderTemplatesView();
+}
+
+function duplicateCurrentTemplate() {
+  const source = getTemplateById(appState.selectedTemplateEditorId || appState.selectedTemplateId);
+  if (!source) return;
+  const next = cloneTemplate(source);
+  next.id = uid('tpl');
+  next.name = `${source.name} (копія)`;
+  next.updatedAt = new Date().toISOString();
+  next.blocks.forEach(block => {
+    block.id = uid('block');
+    block.criteria.forEach(criterion => criterion.id = uid('crit'));
+  });
+  appState.templateDraft = next;
+  appState.selectedTemplateEditorId = next.id;
+  setView('templatesView');
+  renderTemplatesView();
+}
+
+function deleteCurrentTemplate() {
+  const id = appState.selectedTemplateEditorId;
+  if (!id) return;
+  appState.templates = appState.templates.filter(template => template.id !== id);
+  if (!appState.templates.length) appState.templates = [defaultTemplate()];
+  appState.selectedTemplateEditorId = appState.templates[0].id;
+  appState.selectedTemplateId = appState.templates.find(template => template.status !== 'archived')?.id || appState.templates[0].id;
+  appState.templateDraft = cloneTemplate(getTemplateById(appState.selectedTemplateEditorId));
+  saveLocalState();
+  renderAll();
+}
+
+function addBlockToDraft() {
+  if (!appState.templateDraft) createNewTemplate();
+  appState.templateDraft.blocks.push({ id: uid('block'), name: 'Новий блок', criteria: [] });
+  renderTemplatesView();
+}
+
+function resetEvaluationForm() {
+  appState.criterionScores = {};
+  document.getElementById('generalComment').value = '';
+  renderEvaluationView();
+}
+
+function buildEvaluationRecord() {
+  const task = getSelectedTask();
+  const template = getSelectedTemplate();
+  const evaluator = document.getElementById('evaluatorInput').value.trim();
+  const generalComment = document.getElementById('generalComment').value.trim();
+  if (!task) throw new Error('Оберіть задачу для оцінки.');
+  if (!template) throw new Error('Оберіть шаблон КЛН.');
+  if (!evaluator) throw new Error('Вкажіть оцінювача.');
+  const summary = computeEvaluationSummary();
+  if (summary.totalWeight !== 100) throw new Error(`Шаблон не можна використати для оцінки, поки сума ваг не дорівнює 100. Зараз: ${summary.totalWeight}.`);
+  const blocks = template.blocks.map(block => ({
+    name: block.name,
+    criteria: block.criteria.map(criterion => {
+      const state = appState.criterionScores[criterion.id] || {};
+      if (state.score === '' || state.score === undefined || state.score === null || Number.isNaN(Number(state.score))) {
+        throw new Error(`Не вистачає оцінки по критерію "${criterion.name}".`);
+      }
+      return {
+        name: criterion.name,
+        description: criterion.description || '',
+        weight: Number(criterion.weight) || 0,
+        score: Math.max(0, Math.min(100, Number(state.score))),
+        comment: state.comment || ''
+      };
+    })
+  }));
+  return {
+    id: uid('eval'),
+    taskId: task.num,
+    taskTitle: task.title,
+    executor: task.executor,
+    evaluator,
+    createdAt: new Date().toISOString(),
+    templateName: template.name,
+    templateId: template.id,
+    finalScore: summary.percent,
+    generalComment,
+    blocks
+  };
+}
+
+async function saveEvaluation() {
+  try {
+    const evaluation = buildEvaluationRecord();
+    appState.evaluations.unshift(evaluation);
+    appState.selectedEvaluationId = evaluation.id;
+    saveLocalState();
+    await saveEvaluationFile(evaluation);
+    renderAll();
+    setView('historyView');
+  } catch (error) {
+    setSettingsStatus('error', error.message);
+    setView('settingsView');
+  }
+}
+
+function exportState(fileName, data) {
+  triggerDownload(fileName, JSON.stringify(data, null, 2), 'application/json;charset=utf-8');
+}
+
+async function init() {
+  loadLocalState();
+  await restoreFolderHandles();
+  loadTaskImportsFromStorage();
+  if (!appState.selectedTaskId && appState.tasks[0]) appState.selectedTaskId = appState.tasks[0].num;
+  appState.templateDraft = cloneTemplate(getTemplateById(appState.selectedTemplateEditorId));
+  applyZoom(localStorage.getItem(KLN_ZOOM_STORAGE_KEY) || '1');
+  renderAll();
+
+  document.querySelectorAll('[data-view-btn]').forEach(btn => btn.addEventListener('click', () => setView(btn.dataset.viewBtn)));
+  document.getElementById('zoomSelect').addEventListener('change', event => applyZoom(event.target.value));
+  document.getElementById('taskSelect').addEventListener('change', event => { appState.selectedTaskId = event.target.value; syncTaskToForm(); renderEvaluationView(); });
+  document.getElementById('templateSelect').addEventListener('change', event => { appState.selectedTemplateId = event.target.value; resetEvaluationForm(); });
+  document.getElementById('taskSearchInput').addEventListener('input', event => { appState.taskSearch = event.target.value; renderTaskList(); });
+  document.getElementById('taskExecutorFilter').addEventListener('change', event => { appState.taskExecutorFilter = event.target.value; renderTaskList(); });
+  document.getElementById('taskStatusFilter').addEventListener('change', event => { appState.taskStatusFilter = event.target.value; renderTaskList(); });
+  document.getElementById('historySearchInput').addEventListener('input', event => { appState.historySearch = event.target.value; renderHistoryView(); });
+  document.getElementById('historyTemplateFilter').addEventListener('change', event => { appState.historyTemplateFilter = event.target.value; renderHistoryView(); });
+
+  document.getElementById('newTemplateBtn').addEventListener('click', createNewTemplate);
+  document.getElementById('duplicateTemplateBtn').addEventListener('click', duplicateCurrentTemplate);
+  document.getElementById('deleteTemplateBtn').addEventListener('click', deleteCurrentTemplate);
+  document.getElementById('saveTemplateBtn').addEventListener('click', saveTemplate);
+  document.getElementById('addBlockBtn').addEventListener('click', addBlockToDraft);
+  document.getElementById('templateNameInput').addEventListener('input', event => { if (appState.templateDraft) appState.templateDraft.name = event.target.value; });
+  document.getElementById('templateDescriptionInput').addEventListener('input', event => { if (appState.templateDraft) appState.templateDraft.description = event.target.value; });
+  document.getElementById('templateStatusInput').addEventListener('change', event => { if (appState.templateDraft) appState.templateDraft.status = event.target.value; });
+
+  document.getElementById('saveEvaluationBtn').addEventListener('click', saveEvaluation);
+  document.getElementById('quickSaveEvaluationBtn').addEventListener('click', saveEvaluation);
+  document.getElementById('resetEvaluationBtn').addEventListener('click', resetEvaluationForm);
+  document.getElementById('quickDuplicateTemplateBtn').addEventListener('click', duplicateCurrentTemplate);
+  document.getElementById('quickLoadTasksBtn').addEventListener('click', () => {
+    if (loadTaskImportsFromStorage()) {
+      renderAll();
+      setSettingsStatus('success', 'Список задач оновлено з `main_dashboard` storage.');
+      setView('evaluationView');
+    } else {
+      setSettingsStatus('info', 'У `localStorage` поки немає імпортів задач.');
+      setView('settingsView');
+    }
+  });
+
+  document.getElementById('restoreTasksBtn').addEventListener('click', () => {
+    if (loadTaskImportsFromStorage()) {
+      renderAll();
+      setSettingsStatus('success', 'Задачі відновлено з `localStorage` main_dashboard.');
+    } else {
+      setSettingsStatus('info', 'У `localStorage` поки немає імпортів задач.');
+    }
+  });
+
+  document.getElementById('clearTasksBtn').addEventListener('click', () => {
+    appState.tasks = [];
+    appState.selectedTaskId = '';
+    renderAll();
+    setSettingsStatus('success', 'Локальний список задач очищено з цього інструмента.');
+  });
+
+  document.getElementById('applyTaskImportBtn').addEventListener('click', async () => {
+    const file = document.getElementById('taskImportFile').files[0];
+    const pasted = document.getElementById('taskImportPaste').value.trim();
+    let text = pasted;
+    let sourceName = 'manual_import';
+    if (!text && file) {
+      text = await readFileAsText(file);
+      sourceName = file.name;
+    }
+    if (!text) {
+      setSettingsStatus('error', 'Додайте файл або вставте TSV/TXT дані.');
+      return;
+    }
+    const tasks = parseRaw(text);
+    if (!tasks.length) {
+      setSettingsStatus('error', 'Не вдалося розпізнати жодної задачі.');
+      return;
+    }
+    appState.tasks = tasks;
+    appState.selectedTaskId = tasks[0].num;
+    persistTaskImports([{ id: uid('src'), name: sourceName, text, addedAt: new Date().toISOString() }]);
+    renderAll();
+    setSettingsStatus('success', `Імпортовано ${tasks.length} задач.`);
+  });
+
+  document.getElementById('pickTemplatesFolderBtn').addEventListener('click', () => pickFolder('templates'));
+  document.getElementById('pickEvaluationsFolderBtn').addEventListener('click', () => pickFolder('evaluations'));
+  document.getElementById('reloadTemplatesFromFolderBtn').addEventListener('click', loadTemplatesFromFolder);
+  document.getElementById('openHistoryFolderReloadBtn').addEventListener('click', () => {
+    renderHistoryView();
+    setSettingsStatus('info', 'Історію оновлено з локального стану. TXT-файли зберігаються окремо у вибраній папці.');
+  });
+  document.getElementById('exportTemplatesStateBtn').addEventListener('click', () => exportState('kln_templates_state.json', appState.templates));
+  document.getElementById('exportHistoryStateBtn').addEventListener('click', () => exportState('kln_evaluations_state.json', appState.evaluations));
+  document.getElementById('resetLocalStateBtn').addEventListener('click', () => {
+    localStorage.removeItem(KLN_TEMPLATE_STORAGE_KEY);
+    localStorage.removeItem(KLN_EVAL_STORAGE_KEY);
+    appState.templates = [defaultTemplate()];
+    appState.evaluations = [];
+    appState.selectedTemplateId = appState.templates[0].id;
+    appState.selectedTemplateEditorId = appState.templates[0].id;
+    appState.templateDraft = cloneTemplate(appState.templates[0]);
+    renderAll();
+    setSettingsStatus('success', 'Локальні KLN-дані скинуто.');
+  });
+}
+
+init();
+</script>
+</body>
+</html>

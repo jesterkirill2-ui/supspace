@@ -1,0 +1,3072 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT Tasks Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Unbounded:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #111118;
+  --surface2: #18181f;
+  --surface3: #1e1e28;
+  --border: #2a2a35;
+  --border2: #3a3a48;
+  --text: #e8e8f0;
+  --text2: #8888a0;
+  --text3: #555568;
+  --accent: #6c63ff;
+  --accent2: #9f98ff;
+  --done: #22c986;
+  --new: #3b8bff;
+  --cancel: #ff4d6d;
+  --wait: #ffb340;
+  --work: #a78bfa;
+  --exec: #06d6a0;
+  --mono: 'JetBrains Mono', monospace;
+  --display: 'Unbounded', sans-serif;
+  --r: 10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.2;pointer-events:none;z-index:0;}
+.app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh;}
+
+/* HEADER */
+header{border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,10,15,.95);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;}
+.header-logo{font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:-.02em;}
+.header-logo span{color:var(--accent2);}
+.header-version{display:inline-flex;align-items:center;margin-left:10px;padding:3px 8px;border:1px solid var(--border2);border-radius:999px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--text3);vertical-align:middle;}
+.header-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.header-dot{width:7px;height:7px;border-radius:50%;background:var(--done);animation:pulse 2s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,201,134,.4);}50%{opacity:.8;box-shadow:0 0 0 4px rgba(34,201,134,0);}}
+#headerCount{font-size:11px;color:var(--text2);}
+#headerDateRange{font-size:11px;color:var(--text3);}
+.header-btns{display:flex;gap:6px;}
+
+/* ANALYTICS BAR */
+.analytics-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;gap:0;overflow-x:auto;scrollbar-width:none;}
+.analytics-bar::-webkit-scrollbar{display:none;}
+.astat{flex-shrink:0;padding:8px 20px;border-right:1px solid var(--border);min-width:130px;}
+.astat:last-child{border-right:none;}
+.astat-key{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+.astat-val{font-family:var(--display);font-size:18px;font-weight:700;line-height:1;color:var(--text);}
+.astat-val.good{color:var(--done);}
+.astat-val.warn{color:var(--wait);}
+.astat-val.bad{color:var(--cancel);}
+.astat-sub{font-size:10px;color:var(--text3);margin-top:3px;}
+
+/* MAIN LAYOUT */
+main{display:flex;flex:1;padding:20px 24px;gap:18px;min-height:0;}
+.left-panel{width:460px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;}
+.right-panel{flex:1;display:flex;flex-direction:column;gap:14px;}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 8px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;overflow:hidden;}
+.stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:currentColor;opacity:.5;}
+.stat-card:hover{border-color:var(--border2);background:var(--surface2);}
+.stat-card.active{border-color:var(--accent);background:rgba(108,99,255,.08);}
+.stat-val{font-family:var(--display);font-size:20px;font-weight:700;line-height:1;margin-bottom:3px;}
+.stat-lbl{font-size:9px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;}
+
+/* CONTROLS */
+.controls{display:flex;flex-direction:column;gap:7px;}
+.search-wrap{position:relative;}
+.search-wrap input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px 9px 34px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color .2s;}
+.search-wrap input:focus{border-color:var(--accent);}
+.search-wrap input::placeholder{color:var(--text3);}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;}
+.filter-row select{flex:1;min-width:90px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 26px 8px 10px;color:var(--text2);font-family:var(--mono);font-size:11px;outline:none;cursor:pointer;transition:border-color .2s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555568'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;}
+.filter-row select:focus{border-color:var(--accent);}
+
+/* TASK LIST */
+.task-list-wrap{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;min-height:300px;}
+.list-header{padding:9px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;flex-shrink:0;}
+.task-list{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+.task-list::-webkit-scrollbar{width:3px;}
+.task-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.task-item{display:flex;align-items:center;gap:9px;padding:9px 13px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.task-item:hover{background:var(--surface2);}
+.task-item.active{background:rgba(108,99,255,.1);border-left:2px solid var(--accent);padding-left:11px;}
+.task-num{font-size:10px;color:var(--text3);min-width:48px;font-weight:500;}
+.task-name{flex:1;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.badge{font-size:9px;padding:2px 7px;border-radius:20px;font-weight:600;letter-spacing:.03em;white-space:nowrap;flex-shrink:0;}
+.b-done{background:rgba(34,201,134,.12);color:var(--done);border:1px solid rgba(34,201,134,.25);}
+.b-new{background:rgba(59,139,255,.12);color:var(--new);border:1px solid rgba(59,139,255,.25);}
+.b-cancel{background:rgba(255,77,109,.12);color:var(--cancel);border:1px solid rgba(255,77,109,.25);}
+.b-wait{background:rgba(255,179,64,.12);color:var(--wait);border:1px solid rgba(255,179,64,.25);}
+.b-work{background:rgba(167,139,250,.12);color:var(--work);border:1px solid rgba(167,139,250,.25);}
+.b-exec{background:rgba(6,214,160,.12);color:var(--exec);border:1px solid rgba(6,214,160,.25);}
+.b-other{background:rgba(136,136,160,.12);color:var(--text2);border:1px solid rgba(136,136,160,.25);}
+.no-results{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px;color:var(--text3);font-size:12px;gap:8px;}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);gap:8px;flex-shrink:0;}
+.page-btns{display:flex;gap:4px;}
+.page-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;}
+.page-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent2);}
+.page-btn:disabled{opacity:.3;cursor:default;}
+
+/* RIGHT PANEL COMPONENTS */
+.roadmap-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text3);gap:10px;min-height:200px;}
+.roadmap-empty-icon{font-size:36px;opacity:.25;}
+.roadmap-empty-text{font-family:var(--display);font-size:11px;font-weight:300;letter-spacing:.05em;}
+.panel-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;}
+.panel-title{font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.panel-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.task-detail-title{font-family:var(--display);font-size:13px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:4px;}
+.detail-meta{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.meta-item{display:flex;flex-direction:column;gap:2px;}
+.meta-key{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+.meta-val{font-size:12px;color:var(--text);}
+.detail-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.total-time-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.3);border-radius:20px;padding:3px 10px;font-size:10px;color:var(--accent2);margin-top:6px;font-weight:500;}
+.sla-time-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(34,201,134,.08);border:1px solid rgba(34,201,134,.24);border-radius:20px;padding:3px 10px;font-size:10px;color:var(--done);margin-top:6px;font-weight:500;}
+.sla-state-badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600;letter-spacing:.03em;margin-top:6px;border:1px solid transparent;}
+.sla-state-ok{background:rgba(34,201,134,.12);color:var(--done);border-color:rgba(34,201,134,.25);}
+.sla-state-bad{background:rgba(255,77,109,.12);color:var(--cancel);border-color:rgba(255,77,109,.25);}
+.sla-state-pending{background:rgba(255,179,64,.12);color:var(--wait);border-color:rgba(255,179,64,.25);}
+.task-item-badges{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.badge-sla-ok{background:rgba(34,201,134,.12);color:var(--done);border:1px solid rgba(34,201,134,.25);}
+.badge-sla-bad{background:rgba(255,77,109,.12);color:var(--cancel);border:1px solid rgba(255,77,109,.25);}
+.badge-sla-pending{background:rgba(255,179,64,.12);color:var(--wait);border:1px solid rgba(255,179,64,.25);}
+.badge-sla-time{background:rgba(255,179,64,.08);color:var(--wait);border:1px solid rgba(255,179,64,.2);}
+
+/* TIMELINE */
+.timeline{display:flex;flex-direction:column;}
+.tl-step{display:flex;gap:16px;padding-bottom:22px;position:relative;}
+.tl-step:last-child{padding-bottom:0;}
+.tl-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:26px;}
+.tl-dot-wrap{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;font-family:var(--display);flex-shrink:0;position:relative;z-index:2;}
+.tl-dot-done{background:rgba(34,201,134,.15);border:1.5px solid var(--done);color:var(--done);}
+.tl-dot-pending{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text3);}
+.tl-line{width:1.5px;flex:1;background:var(--border);margin:3px 0;}
+.tl-line.done-line{background:linear-gradient(to bottom,var(--done),var(--border));}
+.tl-step:last-child .tl-line{display:none;}
+.tl-body{flex:1;padding-top:3px;}
+.tl-label{font-family:var(--display);font-size:10px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.tl-label.dim{color:var(--text3);}
+.tl-date{font-size:11px;color:var(--text2);margin-bottom:3px;}
+.tl-na{font-size:10px;color:var(--text3);font-style:italic;}
+.tl-dur{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:9px;color:var(--text3);}
+.tl-dur.fast{color:var(--done);border-color:rgba(34,201,134,.25);background:rgba(34,201,134,.05);}
+.tl-dur.slow{color:var(--wait);border-color:rgba(255,179,64,.25);background:rgba(255,179,64,.05);}
+.tl-dur.veryslow{color:var(--cancel);border-color:rgba(255,77,109,.25);background:rgba(255,77,109,.05);}
+.roadmap-history{margin-top:18px;padding-top:16px;border-top:1px solid var(--border);}
+.history-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.history-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);font-size:10px;color:var(--text2);}
+.history-chip strong{color:var(--text);font-weight:600;}
+.history-title{font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;}
+.tl-step.stuck .tl-dot-wrap{background:rgba(255,77,109,.12);border-color:var(--cancel);color:var(--cancel);}
+.tl-step.stuck .tl-label{color:#ffd4dc;}
+.tl-step.stuck .tl-dur{color:var(--cancel);border-color:rgba(255,77,109,.25);background:rgba(255,77,109,.06);}
+
+/* CHART BAR */
+.chart-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.chart-label{font-size:11px;color:var(--text2);width:110px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chart-bar-wrap{flex:1;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+.chart-bar{height:100%;border-radius:4px;transition:width .5s ease;}
+.chart-val{font-size:10px;color:var(--text3);min-width:22px;text-align:right;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--accent);color:var(--accent2);background:rgba(108,99,255,.08);}
+.btn.danger:hover{border-color:var(--cancel);color:var(--cancel);background:rgba(255,77,109,.08);}
+.btn-go{padding:9px 16px;background:var(--accent);border:none;border-radius:var(--r);color:#fff;font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;white-space:nowrap;}
+.btn-go:hover{opacity:.85;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .15s ease;}
+.modal-overlay.hidden{display:none;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:600px;padding:26px;position:relative;max-height:calc(100vh - 40px);overflow-y:auto;}
+.modal-title{font-family:var(--display);font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px;}
+.modal-sub{font-size:11px;color:var(--text3);margin-bottom:20px;line-height:1.7;}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;line-height:1;border-radius:6px;transition:all .15s;}
+.modal-close:hover{color:var(--text);background:var(--surface2);}
+.modal-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:18px;}
+.modal-tab{padding:7px 16px;font-family:var(--mono);font-size:11px;cursor:pointer;border:none;background:none;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;}
+.modal-tab.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.modal-tab:hover:not(.active){color:var(--text2);}
+.modal-section{display:none;}
+.modal-section.active{display:block;}
+.drop-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;margin-bottom:10px;}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:rgba(108,99,255,.06);}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{font-size:26px;margin-bottom:8px;opacity:.45;}
+.drop-label{font-size:12px;color:var(--text2);margin-bottom:3px;}
+.drop-hint{font-size:10px;color:var(--text3);}
+.path-input-wrap{display:flex;gap:7px;margin-bottom:10px;}
+.path-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color .2s;}
+.path-input:focus{border-color:var(--accent);}
+.path-input::placeholder{color:var(--text3);}
+.hint-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;font-size:11px;color:var(--text3);line-height:1.8;margin-bottom:4px;}
+.hint-box code{color:var(--accent2);background:rgba(108,99,255,.1);padding:1px 5px;border-radius:4px;font-size:10px;}
+.modal-msg{margin-top:10px;padding:9px 13px;border-radius:var(--r);font-size:11px;line-height:1.5;display:none;}
+.modal-msg.success{background:rgba(34,201,134,.1);border:1px solid rgba(34,201,134,.25);color:var(--done);display:block;}
+.modal-msg.error{background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.25);color:var(--cancel);display:block;}
+.modal-msg.info{background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.25);color:var(--accent2);display:block;}
+
+/* CONFIRM MODAL */
+.confirm-modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:380px;padding:26px;position:relative;text-align:center;}
+.confirm-modal .icon{font-size:32px;margin-bottom:12px;opacity:.7;}
+.confirm-modal h3{font-family:var(--display);font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.confirm-modal p{font-size:11px;color:var(--text3);margin-bottom:20px;line-height:1.6;}
+.confirm-btns{display:flex;gap:8px;justify-content:center;}
+
+/* SLA RING */
+.sla-section{display:flex;align-items:center;gap:20px;}
+.sla-ring-wrap{position:relative;width:70px;height:70px;flex-shrink:0;}
+.sla-ring-wrap svg{transform:rotate(-90deg);}
+.sla-ring-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;font-weight:700;}
+.sla-details{flex:1;display:flex;flex-direction:column;gap:5px;}
+.sla-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;}
+.sla-row-label{color:var(--text3);}
+.sla-row-val{font-weight:500;color:var(--text);}
+
+/* WEEKDAY TOGGLE */
+.wd-btn{padding:5px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface2);color:var(--text3);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;user-select:none;}
+.wd-btn.on{border-color:var(--accent);background:rgba(108,99,255,.15);color:var(--accent2);}
+
+/* HOLIDAY TAGS */
+.holiday-tag{display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text2);}
+.holiday-tag button{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;line-height:1;padding:0 1px;}
+.holiday-tag button:hover{color:var(--cancel);}
+
+/* FTR SECTION */
+.ftr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ftr-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.ftr-card-key{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;}
+.ftr-card-val{font-family:var(--display);font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.ftr-card-sub{font-size:10px;color:var(--text3);}
+
+.filter-stack{display:flex;gap:6px;flex-wrap:wrap;}
+.filter-stack input[type="date"],.filter-stack select{flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;color:var(--text2);font-family:var(--mono);font-size:11px;outline:none;transition:border-color .2s;}
+.filter-stack input[type="date"]:focus,.filter-stack select:focus{border-color:var(--accent);}
+.mini-note{font-size:10px;color:var(--text3);line-height:1.5;padding:2px 2px 0;}
+.source-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.source-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 10px;font-size:10px;color:var(--text2);}
+.source-chip button{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;line-height:1;padding:0;}
+.source-chip button:hover{color:var(--cancel);}
+.timeline-chart{display:flex;flex-direction:column;gap:12px;}
+.timeline-chart-empty{padding:18px;border:1px dashed var(--border2);border-radius:10px;color:var(--text3);font-size:11px;text-align:center;}
+.timeline-chart-stage{width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:4px;}
+.timeline-chart-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:10px;color:var(--text3);}
+.timeline-chart-legend span{display:inline-flex;align-items:center;gap:6px;}
+.timeline-chart-legend i{display:inline-block;width:18px;height:2px;border-radius:999px;}
+.timeline-chart-legend .created{background:var(--new);}
+.timeline-chart-legend .done{background:var(--done);}
+.timeline-chart-svg{height:320px;display:block;min-width:860px;}
+.timeline-chart-axis{stroke:var(--border2);stroke-width:1;}
+.timeline-chart-gridline{stroke:rgba(136,136,160,.18);stroke-width:1;}
+.timeline-chart-label{fill:var(--text3);font-size:10px;font-family:var(--mono);}
+.timeline-chart-path-created{fill:none;stroke:var(--new);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;}
+.timeline-chart-path-done{fill:none;stroke:var(--done);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;}
+.timeline-chart-dot-created{fill:var(--new);stroke:var(--surface);stroke-width:2;}
+.timeline-chart-dot-done{fill:var(--done);stroke:var(--surface);stroke-width:2;}
+
+/* DASHBOARD REDESIGN */
+.dashboard-main{display:flex;flex-direction:column;gap:18px;flex:1;padding:20px 24px 28px;min-height:0;}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(360px,1fr);gap:16px;}
+.hero-card{background:linear-gradient(180deg,rgba(24,24,31,.95),rgba(17,17,24,.98));border:1px solid var(--border);border-radius:28px;padding:24px;position:relative;overflow:hidden;}
+.hero-card::before{content:'';position:absolute;inset:auto -10% -45% auto;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(59,139,255,.14),transparent 65%);pointer-events:none;}
+.hero-card::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.03),transparent 36%);pointer-events:none;}
+.hero-copy{display:flex;flex-direction:column;gap:16px;min-height:300px;}
+.hero-eyebrow{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.28em;}
+.hero-title{font-family:var(--display);font-size:clamp(34px,4.8vw,62px);line-height:.95;font-weight:700;letter-spacing:-.05em;max-width:720px;}
+.hero-text{max-width:680px;font-size:13px;line-height:1.8;color:var(--text2);}
+.hero-chips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:auto;}
+.hero-chip{background:rgba(17,17,24,.8);border:1px solid var(--border);border-radius:18px;padding:14px 16px;}
+.hero-chip-key{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.14em;margin-bottom:8px;}
+.hero-chip-val{font-family:var(--display);font-size:26px;line-height:1;font-weight:700;color:var(--text);}
+.hero-chip-sub{font-size:11px;color:var(--text3);margin-top:6px;line-height:1.5;}
+.hero-side-title{display:flex;align-items:center;justify-content:space-between;gap:10px;font-family:var(--display);font-size:13px;font-weight:600;margin-bottom:14px;}
+.hero-side-title span:last-child{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);}
+.analytics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.metric-card{background:rgba(24,24,31,.88);border:1px solid var(--border);border-radius:18px;padding:16px;min-height:118px;display:flex;flex-direction:column;justify-content:space-between;}
+.metric-label{font-size:9px;color:var(--text3);letter-spacing:.18em;text-transform:uppercase;line-height:1.5;}
+.metric-value{font-family:var(--display);font-size:38px;line-height:1;font-weight:700;color:var(--text);}
+.metric-value.good{color:var(--done);}
+.metric-value.warn{color:var(--wait);}
+.metric-value.bad{color:var(--cancel);}
+.metric-sub{font-size:11px;color:var(--text2);line-height:1.5;}
+.workspace-grid{display:grid;grid-template-columns:minmax(360px,.92fr) minmax(0,1.08fr);gap:16px;min-height:0;flex:1;}
+.workspace-left,.workspace-right{display:flex;flex-direction:column;gap:14px;min-height:0;}
+.controls-card{display:flex;flex-direction:column;gap:12px;}
+.panel-copy{font-size:11px;color:var(--text3);line-height:1.6;margin-top:-6px;}
+.filter-section-title{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:2px;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 12px;text-align:left;}
+.stat-card::after{height:3px;opacity:.65;}
+.stat-card.active{border-color:var(--accent);background:rgba(108,99,255,.08);}
+.stat-val{font-family:var(--display);font-size:24px;margin-bottom:8px;}
+.stat-lbl{font-size:10px;color:var(--text3);line-height:1.5;}
+.leaderboard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
+.panel-head .panel-title{margin-bottom:0;}
+.panel-head select{min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 28px 8px 10px;color:var(--text2);font-family:var(--mono);font-size:11px;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555568'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+.leaderboard-table{display:flex;flex-direction:column;gap:8px;}
+.leaderboard-row{display:grid;grid-template-columns:44px minmax(0,1.4fr) .8fr .9fr .7fr;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);}
+.leaderboard-row.head{padding:0 2px;border:none;border-radius:0;background:none;color:var(--text3);font-size:9px;letter-spacing:.12em;text-transform:uppercase;}
+.leaderboard-rank{font-family:var(--display);font-size:18px;color:var(--accent2);}
+.leaderboard-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.leaderboard-meta{font-size:11px;color:var(--text2);}
+.leaderboard-empty{padding:20px;border:1px dashed var(--border2);border-radius:14px;color:var(--text3);font-size:11px;text-align:center;}
+.scope-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.scope-list{display:flex;flex-direction:column;gap:8px;}
+.scope-item{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.6;color:var(--text2);}
+.scope-item::before{content:'+';display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(34,201,134,.12);border:1px solid rgba(34,201,134,.22);color:var(--done);font-size:11px;flex-shrink:0;}
+.scope-item.exclude::before{content:'-';background:rgba(255,77,109,.12);border-color:rgba(255,77,109,.22);color:var(--cancel);}
+.task-list-wrap{min-height:420px;}
+.infographic-card{display:flex;flex-direction:column;gap:14px;}
+.infographic-controls{display:flex;gap:10px;flex-wrap:wrap;}
+.infographic-controls input[type="date"]{flex:1;min-width:140px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 10px;color:var(--text2);font-family:var(--mono);font-size:11px;outline:none;}
+.infographic-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.preview-shell{background:linear-gradient(180deg,rgba(24,24,31,.88),rgba(17,17,24,.95));border:1px solid var(--border);border-radius:20px;padding:14px;min-height:260px;}
+.preview-stage{display:flex;align-items:center;justify-content:center;border:1px dashed var(--border2);border-radius:16px;min-height:230px;background:radial-gradient(circle at top,rgba(255,179,64,.08),transparent 55%),var(--surface2);overflow:hidden;}
+.preview-stage img{display:block;width:100%;height:auto;border-radius:12px;}
+.preview-empty{padding:28px;text-align:center;color:var(--text3);font-size:11px;line-height:1.7;max-width:320px;}
+.preview-note{font-size:10px;color:var(--text3);}
+.preview-title{font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;}
+
+@media (max-width: 1240px){
+  .hero-grid,.workspace-grid,.leaderboard-grid{grid-template-columns:1fr;}
+}
+
+@media (max-width: 820px){
+  .dashboard-main{padding:16px;}
+  .hero-card{padding:20px;}
+  .hero-chips,.analytics-grid,.scope-grid,.stats-grid{grid-template-columns:1fr;}
+  .leaderboard-row,.leaderboard-row.head{grid-template-columns:34px minmax(0,1fr) .8fr .9fr;}
+  .leaderboard-row > :last-child,.leaderboard-row.head > :last-child{display:none;}
+}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.fade-in{animation:fadeIn .25s ease forwards;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+</style>
+<script src="./dashboard_config.js"></script>
+</head>
+<body>
+<div class="app">
+
+<header>
+  <div class="header-logo">IT<span>TASKS</span> // DASHBOARD</div>
+  <div class="header-meta">
+    <div class="header-dot"></div>
+    <span id="headerCount">—</span>
+    <span id="headerDateRange">—</span>
+    <div class="header-btns">
+      <button class="btn" onclick="openModal()">⊕ Завантажити</button>
+      <button class="btn" onclick="openSlaSettings()">⚙ SLA</button>
+      <button class="btn danger" onclick="confirmClear()">⊗ Очистити</button>
+    </div>
+  </div>
+</header>
+
+<!-- ANALYTICS BAR -->
+<div class="analytics-bar" id="analyticsBar">
+  <div class="astat"><div class="astat-key">Завантажте дані</div><div class="astat-val" style="font-size:12px;color:var(--text3);">використайте кнопку вище</div></div>
+</div>
+
+<main>
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="controls">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="searchInput" placeholder="Пошук за номером або назвою..." oninput="renderAll()">
+      </div>
+      <div class="filter-row">
+        <select id="statusFilter" onchange="renderAll()">
+          <option value="">Всі статуси</option>
+          <option value="Завершене">Завершене</option>
+          <option value="Нове">Нове</option>
+          <option value="Виконане">Виконане</option>
+          <option value="Скасоване">Скасоване</option>
+          <option value="Відкладене">Відкладене</option>
+          <option value="В роботі">В роботі</option>
+          <option value="Очікує на відповідь">Очікує на відповідь</option>
+        </select>
+        <select id="groupFilter" onchange="renderAll()">
+          <option value="">Всі групи</option>
+          <option value="IT Dep't">IT Dep't</option>
+          <option value="Сервіси">Сервіси</option>
+        </select>
+      </div>
+      <div class="filter-row">
+        <select id="executorFilter" onchange="renderAll()"><option value="">Всі виконавці</option></select>
+        <select id="authorFilter" onchange="renderAll()"><option value="">Всі постановники</option></select>
+      </div>
+      <div class="filter-row">
+        <select id="sortBy" onchange="renderAll()">
+          <option value="num_desc">↓ Номер</option>
+          <option value="num_asc">↑ Номер</option>
+          <option value="date_desc">↓ Дата створення</option>
+          <option value="date_asc">↑ Дата створення</option>
+        </select>
+      </div>
+      <div class="filter-stack">
+        <input type="date" id="dateFromFilter" onchange="renderAll()">
+        <input type="date" id="dateToFilter" onchange="renderAll()">
+      </div>
+      <div class="filter-stack">
+        <select id="sourceFilter" onchange="renderAll()">
+          <option value="">Р’СЃС– РґР¶РµСЂРµР»Р°</option>
+        </select>
+        <button class="btn" type="button" onclick="clearDateFilters()">Скинути фільтр дати</button>
+      </div>
+      <div class="mini-note" id="sourceSummary">Р”Р¶РµСЂРµР»Р° РґР°РЅРёС… Р·Р±РµСЂС–РіР°СЋС‚СЊСЃСЏ Р»РѕРєР°Р»СЊРЅРѕ РІ browser storage.</div>
+    </div>
+    <div class="task-list-wrap">
+      <div class="list-header">
+        <span id="listCountLabel">Задачі</span>
+        <span id="listPageLabel"></span>
+      </div>
+      <div class="task-list" id="taskList"></div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel" id="rightPanel">
+    <div class="panel-card" id="dateChartPanel">
+      <div class="panel-title">Р”РёРЅР°РјС–РєР° Р·Р° РґР°С‚Р°РјРё</div>
+      <div class="timeline-chart" id="dateChart"></div>
+    </div>
+    <div class="roadmap-empty" id="emptyState">
+      <div class="roadmap-empty-icon">◈</div>
+      <div class="roadmap-empty-text">Оберіть задачу для перегляду roadmap</div>
+    </div>
+  </div>
+</main>
+
+<!-- LOAD MODAL -->
+<div class="modal-overlay hidden" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Завантажити дані</div>
+    <div class="modal-sub">TSV/CSV з Google Sheets або Planfix. Колонки: Номер, Назва, Статус, Група, Постановник, Виконавець, Дата виконання, Дата завершення, Дата створення, FTR призначення, FTR відповідь.</div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchModalTab('file',this)">Файл</button>
+      <button class="modal-tab" onclick="switchModalTab('folder',this)">Папка</button>
+      <button class="modal-tab" onclick="switchModalTab('url',this)">URL / Шлях</button>
+      <button class="modal-tab" onclick="switchModalTab('paste',this)">Вставити текст</button>
+      <button class="modal-tab" onclick="switchModalTab('history',this)">Статуси</button>
+    </div>
+    <div class="modal-section active" id="tab-file">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".tsv,.csv,.txt" onchange="handleFileInput(this)">
+        <div class="drop-icon">⊞</div>
+        <div class="drop-label">Перетягніть файл або натисніть</div>
+        <div class="drop-hint">.tsv, .csv, .txt — експорт з Google Sheets</div>
+      </div>
+      <div class="hint-box">В Google Sheets: <code>Файл → Завантажити → TSV (.tsv)</code><br>Файл не передається в мережу — обробляється локально.</div>
+      <div class="modal-msg" id="msg-file"></div>
+    </div>
+    <div class="modal-section" id="tab-folder">
+      <div class="drop-zone">
+        <input type="file" id="folderInput" webkitdirectory directory multiple onchange="handleFolderInput(this)">
+        <div class="drop-icon">◫</div>
+        <div class="drop-label">Оберіть папку з TSV/CSV/TXT файлами</div>
+        <div class="drop-hint">Можна зберігати щоденні експорти в окремій папці</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="btn-go" type="button" onclick="pickDataDirectory()">Відкрити папку через browser</button>
+        <button class="btn" type="button" onclick="restoreStoredImports()">Оновити з збереженого</button>
+      </div>
+      <div class="hint-box">Після імпорту дані запам'ятовуються в localStorage. Для безпосереднього читання папки browser повинен отримати дозвіл.</div>
+      <div class="source-list" id="storedSources"></div>
+      <div class="modal-msg" id="msg-folder"></div>
+    </div>
+    <div class="modal-section" id="tab-url">
+      <div class="path-input-wrap">
+        <input class="path-input" id="urlInput" type="text" placeholder="https://docs.google.com/spreadsheets/d/ID/export?format=tsv">
+        <button class="btn-go" onclick="loadFromUrl()">Завантажити</button>
+      </div>
+      <div class="hint-box">
+        <strong style="color:var(--text2)">Google Sheets (публічний доступ):</strong><br>
+        <code>https://docs.google.com/spreadsheets/d/ID/export?format=tsv</code><br><br>
+        <strong style="color:var(--text2)">Локальний HTTP-сервер:</strong><br>
+        <code>http://localhost:8080/tasks.tsv</code><br><br>
+        Примітка: браузер блокує прямі <code>file://</code>-шляхи. Для локальних файлів — вкладка <strong style="color:var(--text2)">Файл</strong>.
+      </div>
+      <div class="modal-msg" id="msg-url"></div>
+    </div>
+    <div class="modal-section" id="tab-paste">
+      <textarea class="path-input" id="pasteInput" rows="9" style="width:100%;resize:vertical;font-size:11px;line-height:1.5" placeholder="Виділіть всі дані в Google Sheets (Ctrl+A), скопіюйте (Ctrl+C) і вставте сюди (Ctrl+V)..."></textarea>
+      <div style="display:flex;gap:7px;margin-top:8px;">
+        <button class="btn-go" onclick="loadFromPaste()">Застосувати</button>
+        <button class="btn" onclick="document.getElementById('pasteInput').value=''">Очистити</button>
+      </div>
+      <div class="modal-msg" id="msg-paste"></div>
+    </div>
+    <div class="modal-section" id="tab-history">
+      <div class="drop-zone">
+        <input type="file" id="statusHistoryFileInput" accept=".tsv,.csv,.txt" onchange="handleStatusHistoryFile(this)">
+        <div class="drop-icon">⟲</div>
+        <div class="drop-label">Завантажте історію статусів</div>
+        <div class="drop-hint">Формат: Номер, дата переходу, статус</div>
+      </div>
+      <div class="hint-box">Очікується файл з колонками: <code>Номер</code>, <code>дата переходу в статус</code>, <code>статус</code>. Формат дати: <code>MM/DD/YYYY H:mm</code>.</div>
+      <textarea class="path-input" id="statusHistoryPasteInput" rows="7" style="width:100%;resize:vertical;font-size:11px;line-height:1.5" placeholder="Або вставте історію статусів сюди..."></textarea>
+      <div style="display:flex;gap:7px;margin-top:8px;">
+        <button class="btn-go" onclick="loadStatusHistoryFromPaste()">Імпортувати статуси</button>
+        <button class="btn" onclick="document.getElementById('statusHistoryPasteInput').value=''">Очистити</button>
+      </div>
+      <div class="modal-msg" id="msg-history"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM CLEAR MODAL -->
+<div class="modal-overlay hidden" id="confirmOverlay" onclick="if(event.target===this)closeConfirm()">
+  <div class="confirm-modal">
+    <div class="icon">⚠</div>
+    <h3>Очистити всі дані?</h3>
+    <p>Всі завантажені задачі будуть видалені з дашборду. Цю дію не можна скасувати.</p>
+    <div class="confirm-btns">
+      <button class="btn" onclick="closeConfirm()">Скасувати</button>
+      <button class="btn danger" onclick="clearData()" style="border-color:var(--cancel);color:var(--cancel);">Так, очистити</button>
+    </div>
+  </div>
+</div>
+
+<!-- SLA SETTINGS MODAL -->
+<div class="modal-overlay hidden" id="slaOverlay" onclick="if(event.target===this)closeSlaSettings()">
+  <div class="modal" style="max-width:560px;">
+    <button class="modal-close" onclick="closeSlaSettings()">✕</button>
+    <div class="modal-title">⚙ Налаштування SLA</div>
+    <div class="modal-sub">Вкажіть робочий графік для розрахунку SLA-часу. Час за межами графіка не враховується при обчисленні тривалості виконання.</div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Робочі години</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);">
+          від <input type="number" id="slaHourStart" min="0" max="23" style="width:54px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;text-align:center;" /> год
+        </div>
+        <div style="font-size:12px;color:var(--text3);">до</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);">
+          <input type="number" id="slaHourEnd" min="1" max="24" style="width:54px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;text-align:center;" /> год
+        </div>
+        <div style="font-size:11px;color:var(--text3);">— кожного робочого дня</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Робочі дні тижня</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;" id="slaWeekdays"></div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Вихідні / святкові дні (не рахуються)</div>
+      <div style="display:flex;gap:7px;margin-bottom:8px;">
+        <input class="path-input" id="slaHolidayInput" type="text" placeholder="дд.мм.рррр, напр. 08.03.2026" style="flex:1;" onkeydown="if(event.key==='Enter')addHoliday()">
+        <button class="btn-go" onclick="addHoliday()">+ Додати</button>
+      </div>
+      <div id="slaHolidayList" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px;"></div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Ціль SLA (робочих годин)</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="number" id="slaTargetHours" min="1" style="width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;text-align:center;">
+        <span style="font-size:11px;color:var(--text3)">год — задачі, виконані за цей час, вважаються "в SLA"</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--border);">
+      <button class="btn" onclick="resetSlaSettings()">Скинути до стандарту</button>
+      <button class="btn-go" onclick="saveSlaSettings()">Зберегти</button>
+    </div>
+    <div class="modal-msg" id="msg-sla"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+// ============================================================
+// PARSE HELPERS
+// ============================================================
+function parseDate(s) {
+  if (!s || !s.trim()) return null;
+  const m = s.trim().match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
+  if (!m) return null;
+  return new Date(+m[3], +m[2]-1, +m[1], +m[4], +m[5]);
+}
+function parseHistoryDate(s) {
+  if (!s || !s.trim()) return null;
+  const m = s.trim().match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return new Date(+m[3], +m[1] - 1, +m[2], +m[4], +m[5]);
+}
+function fmtDate(d) {
+  if (!d) return null;
+  return d.toLocaleString('uk-UA', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function diffMs(d1, d2) { return (!d1||!d2||(d2-d1)<0) ? null : d2-d1; }
+function diffHours(d1, d2) { const ms=diffMs(d1,d2); return ms===null?null:ms/3600000; }
+function fmtDur(ms) {
+  if (ms===null||ms===undefined) return null;
+  const mins = Math.round(ms/60000);
+  if (mins < 60) return `${mins} хв`;
+  const hrs = +(ms/3600000).toFixed(1);
+  if (hrs < 24) return `${hrs} год`;
+  return `${+(hrs/24).toFixed(1)} д`;
+}
+function fmtDurCompact(ms) {
+  if (ms===null||ms===undefined) return '—';
+  const mins = Math.max(0, Math.round(ms / 60000));
+  const hours = Math.floor(mins / 60);
+  const minutes = mins % 60;
+  if (!hours) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
+}
+function fmtDurH(h) { return h===null?null:fmtDur(h*3600000); }
+function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+function median(arr) {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a,b)=>a-b);
+  const m = Math.floor(s.length/2);
+  return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+}
+function fmtShortDate(d) {
+  if (!d) return '—';
+  return d.toLocaleDateString('uk-UA', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let tasks = [];
+let selectedNum = null;
+let currentPage = 1;
+let activeStatusFilter = '';
+const PAGE_SIZE = 25;
+let infographicState = null;
+let statusInfographicState = null;
+let taskStatusHistory = new Map();
+const DASHBOARD_VERSION = 'v1.0.4';
+
+function isActiveTask(task) {
+  if (!task) return false;
+  return task.status !== 'Завершене' && task.status !== 'Скасоване';
+}
+
+function buildDashboardLayout() {
+  const analyticsBar = document.getElementById('analyticsBar');
+  if (analyticsBar) analyticsBar.remove();
+  const main = document.querySelector('.app > main');
+  if (!main) return;
+  main.className = 'dashboard-main';
+  main.innerHTML = `
+    <section class="hero-grid">
+      <div class="hero-card hero-copy">
+        <div class="hero-eyebrow">Огляд операцій</div>
+        <div class="hero-title">Дашборд задач та контролю SLA</div>
+        <div class="hero-text">Фокусуємо сторінку на ключових показниках, відборі задач по даті створення та рейтингах людей. Завантаження файлів, налаштування SLA і очищення даних залишаються на місці, а графік динаміки за датами прибрано з інтерфейсу.</div>
+        <div class="hero-chips">
+          <div class="hero-chip">
+            <div class="hero-chip-key">Період створення</div>
+            <div class="hero-chip-val" id="heroDateText">—</div>
+            <div class="hero-chip-sub">Фільтруємо саме по даті створення задачі</div>
+          </div>
+          <div class="hero-chip">
+            <div class="hero-chip-key">Джерела</div>
+            <div class="hero-chip-val" id="heroSourceCount">0</div>
+            <div class="hero-chip-sub">Імпорти зберігаються локально та доступні для повторного використання</div>
+          </div>
+          <div class="hero-chip">
+            <div class="hero-chip-key">Ціль SLA</div>
+            <div class="hero-chip-val" id="heroSlaTarget">12 год</div>
+            <div class="hero-chip-sub" id="heroSlaSchedule">Робочі години враховуються окремо від календарного часу</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-card">
+        <div class="hero-side-title">
+          <span>Ключові мірки</span>
+          <span>Live snapshot</span>
+        </div>
+        <div class="analytics-grid" id="analyticsBar">
+          <div class="metric-card">
+            <div class="metric-label">Очікуємо дані</div>
+            <div class="metric-value">—</div>
+            <div class="metric-sub">Завантажте файл або відновіть збережене джерело</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspace-grid">
+      <div class="workspace-left">
+        <div class="panel-card controls-card">
+          <div class="panel-title">Фільтри та джерела</div>
+          <div class="panel-copy">Пошук, відбір по статусах, SLA та людям. Діапазон дат працює тільки по полю створення задачі.</div>
+          <div class="search-wrap">
+            <span class="search-icon">⌕</span>
+            <input type="text" id="searchInput" placeholder="Пошук за номером або назвою..." oninput="renderAll()">
+          </div>
+          <div class="filter-section-title">Основні фільтри</div>
+          <div class="filter-row">
+            <select id="statusFilter" onchange="renderAll()">
+              <option value="">Всі статуси</option>
+              <option value="Завершене">Завершене</option>
+              <option value="Нове">Нове</option>
+              <option value="Виконане">Виконане</option>
+              <option value="Скасоване">Скасоване</option>
+              <option value="Відкладене">Відкладене</option>
+              <option value="В роботі">В роботі</option>
+              <option value="Очікує на відповідь">Очікує на відповідь</option>
+            </select>
+            <select id="groupFilter" onchange="renderAll()">
+              <option value="">Всі групи</option>
+              <option value="IT Dep't">IT Dep't</option>
+              <option value="Сервіси">Сервіси</option>
+            </select>
+          </div>
+          <div class="filter-row">
+            <select id="executorFilter" onchange="renderAll()"><option value="">Всі виконавці</option></select>
+            <select id="authorFilter" onchange="renderAll()"><option value="">Всі постановники</option></select>
+          </div>
+          <div class="filter-row">
+            <select id="slaFilter" onchange="renderAll()">
+              <option value="">Весь SLA</option>
+              <option value="fail">Тільки SLA fail</option>
+              <option value="ok">Тільки SLA ok</option>
+              <option value="progress">SLA в роботі</option>
+              <option value="no_data">Без SLA-даних</option>
+            </select>
+            <select id="sortBy" onchange="renderAll()">
+              <option value="date_desc">↓ Дата створення</option>
+              <option value="date_asc">↑ Дата створення</option>
+              <option value="num_desc">↓ Номер</option>
+              <option value="num_asc">↑ Номер</option>
+            </select>
+          </div>
+          <div class="filter-section-title">Дата створення</div>
+          <div class="filter-stack">
+            <input type="date" id="dateFromFilter" onchange="renderAll()">
+            <input type="date" id="dateToFilter" onchange="renderAll()">
+          </div>
+          <div class="filter-stack">
+            <select id="sourceFilter" onchange="renderAll()">
+              <option value="">Всі джерела</option>
+            </select>
+            <button class="btn" type="button" onclick="clearDateFilters()">Скинути дату</button>
+          </div>
+          <div class="mini-note" id="sourceSummary">Джерела даних зберігаються локально в browser storage.</div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <div class="task-list-wrap">
+          <div class="list-header">
+            <span id="listCountLabel">Задачі</span>
+            <span id="listPageLabel"></span>
+          </div>
+          <div class="task-list" id="taskList"></div>
+          <div class="pagination" id="pagination"></div>
+        </div>
+      </div>
+
+      <div class="workspace-right">
+        <div class="leaderboard-grid">
+          <div class="panel-card">
+            <div class="panel-head">
+              <div class="panel-title">Топ виконавців</div>
+              <select id="executorRankingSort" onchange="renderAll()">
+                <option value="sla">За SLA %</option>
+                <option value="avg">За середнім часом</option>
+                <option value="done">За завершеними</option>
+              </select>
+            </div>
+            <div id="executorLeaderboard" class="leaderboard-table"></div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-head">
+              <div class="panel-title">Топ постановників</div>
+              <select id="authorRankingSort" onchange="renderAll()">
+                <option value="sla">За SLA %</option>
+                <option value="avg">За середнім часом</option>
+                <option value="done">За завершеними</option>
+              </select>
+            </div>
+            <div id="authorLeaderboard" class="leaderboard-table"></div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-title">Склад дашборда</div>
+          <div class="scope-grid">
+            <div class="scope-list">
+              <div class="scope-item">Залишаємо імпорт файлів, налаштування SLA і кнопку очищення.</div>
+              <div class="scope-item">Показуємо 4 головні KPI: завершення, SLA, середній час виконання і першу відповідь.</div>
+              <div class="scope-item">Фільтри працюють по даті створення, виконавцю, постановнику, статусу, джерелу та SLA fail.</div>
+            </div>
+            <div class="scope-list">
+              <div class="scope-item exclude">Прибираємо графік "Динаміки за датами" з основного екрану.</div>
+              <div class="scope-item exclude">Не змішуємо календарний час і SLA-час в одному показнику.</div>
+              <div class="scope-item exclude">Не ховаємо рейтинги людей за окремими вкладками або модалками.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-panel" id="rightPanel">
+          <div class="roadmap-empty" id="emptyState">
+            <div class="roadmap-empty-icon">◌</div>
+            <div class="roadmap-empty-text">Оберіть задачу, щоб подивитися хронологію та деталі</div>
+          </div>
+        </div>
+
+        <div class="panel-card infographic-card">
+          <div class="panel-title">Інфографіка KPI</div>
+          <div class="panel-copy">Згенеруйте картинку по вибраному періоду в стилі SUP SPACE. За замовчуванням використовується глобальний фільтр дат, але можна вказати локальний період тільки для інфографіки.</div>
+          <div class="infographic-controls">
+            <input type="date" id="infoDateFrom">
+            <input type="date" id="infoDateTo">
+            <button class="btn-go" type="button" onclick="generateInfographic()">Згенерувати інфографіку</button>
+            <button class="btn" type="button" onclick="generateStatusInfographic()">Згенерувати по статусах</button>
+          </div>
+          <div class="preview-title">KPI Snapshot</div>
+          <div class="preview-shell">
+            <div class="preview-stage" id="infographicPreviewStage">
+              <div class="preview-empty">Оберіть період і натисніть «Згенерувати інфографіку», щоб побачити прев’ю та отримати експорт у PNG або JPG.</div>
+            </div>
+          </div>
+          <div class="infographic-actions">
+            <button class="btn" type="button" onclick="downloadInfographic('png')">Завантажити PNG</button>
+            <button class="btn" type="button" onclick="downloadInfographic('jpg')">Завантажити JPG</button>
+          </div>
+          <div class="preview-note" id="infographicMeta">Поточні KPI будуть зібрані з відфільтрованих даних дашборда.</div>
+          <div class="preview-title">Status Bottlenecks</div>
+          <div class="preview-shell">
+            <div class="preview-stage" id="statusInfographicPreviewStage">
+              <div class="preview-empty">Інфографіка статусів покаже всі знайдені статуси та де задачі застрягають найдовше за вибраний період.</div>
+            </div>
+          </div>
+          <div class="infographic-actions">
+            <button class="btn" type="button" onclick="downloadStatusInfographic('png')">Статуси PNG</button>
+            <button class="btn" type="button" onclick="downloadStatusInfographic('jpg')">Статуси JPG</button>
+          </div>
+          <div class="preview-note" id="statusInfographicMeta">Для статусної інфографіки потрібен імпорт історії статусів.</div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+function parseRaw(text) {
+  const lines = text.trim().split('\n').filter(Boolean);
+  if (!lines.length) return [];
+
+  const rows = lines.map(line => line.replace(/\r$/, '').split('\t'));
+  const normalize = value => (value || '').toLowerCase().replace(/["'`]/g, '').replace(/\s+/g, ' ').trim();
+  const header = rows[0].map(normalize);
+  const isHeaderRow = rows[0] && isNaN(+(rows[0][0] || '').trim());
+
+  const aliases = {
+    num: ['номер'],
+    title: ['назва'],
+    status: ['статус'],
+    group: ['група', 'група проєктів / проєкт', 'группа проектов / проект'],
+    author: ['постановник'],
+    executor: ['виконавець', 'виконавці'],
+    dateExec: ['дата виконання'],
+    dateFinished: ['дата завершення', 'дата отримання статусу «завершене»', 'дата получения статуса «завершене»', 'дата отримання статусу "завершене"'],
+    dateCreated: ['дата створення'],
+    ftrAssigned: ['ftr дата призначення', 'ftr призначення'],
+    ftrAnswer: ['ftr дата відповіді', 'ftr відповідь'],
+  };
+
+  const findIndex = (key, fallback) => {
+    if (!isHeaderRow) return fallback;
+    const variants = aliases[key] || [];
+    const exact = header.findIndex(cell => variants.includes(cell));
+    if (exact >= 0) return exact;
+    return header.findIndex(cell => variants.some(alias => cell.includes(alias)));
+  };
+
+  const indices = {
+    num: findIndex('num', 0),
+    title: findIndex('title', 1),
+    status: findIndex('status', 2),
+    group: findIndex('group', 3),
+    author: findIndex('author', 4),
+    executor: findIndex('executor', 5),
+    dateExec: findIndex('dateExec', 6),
+    dateFinished: findIndex('dateFinished', 7),
+    dateCreated: findIndex('dateCreated', 8),
+    ftrAssigned: findIndex('ftrAssigned', 9),
+    ftrAnswer: findIndex('ftrAnswer', 10),
+  };
+
+  return rows.slice(isHeaderRow ? 1 : 0).map(parts => {
+    if (parts.length < 3) return null;
+    const num = (parts[indices.num] || '').trim();
+    if (!num || isNaN(+num)) return null;
+    return {
+      num,
+      title: (parts[indices.title] || '').trim(),
+      status: (parts[indices.status] || '').trim(),
+      group: (parts[indices.group] || '').trim(),
+      author: (parts[indices.author] || '').trim(),
+      executor: (parts[indices.executor] || '').trim(),
+      dateExec: parseDate(parts[indices.dateExec]),
+      dateFinished: parseDate(parts[indices.dateFinished]),
+      dateCreated: parseDate(parts[indices.dateCreated]),
+      ftrAssigned: parseDate(parts[indices.ftrAssigned]),
+      ftrAnswer: parseDate(parts[indices.ftrAnswer]),
+    };
+  }).filter(Boolean);
+}
+
+function parseStatusHistoryRaw(text) {
+  const lines = text.trim().split('\n').filter(Boolean);
+  if (!lines.length) return [];
+  const rows = lines.map(line => line.replace(/\r$/, '').split('\t'));
+  const normalize = value => (value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const header = rows[0].map(normalize);
+  const isHeaderRow = rows[0] && isNaN(+(rows[0][0] || '').trim());
+  const findHeader = variants => {
+    const exact = header.findIndex(cell => variants.includes(cell));
+    if (exact >= 0) return exact;
+    return header.findIndex(cell => variants.some(alias => cell.includes(alias)));
+  };
+  const numIndex = isHeaderRow ? findHeader(['номер']) : 0;
+  const dateIndex = isHeaderRow ? findHeader(['історія статусів.дата перекладу в наступний статус', 'дата переходу в статус', 'дата переходу']) : 1;
+  const statusIndex = isHeaderRow ? findHeader(['історія статусів.статус', 'статус']) : 2;
+
+  return rows.slice(isHeaderRow ? 1 : 0).map(parts => {
+    const num = (parts[numIndex] || '').trim();
+    const changedAt = parseHistoryDate(parts[dateIndex]);
+    const status = (parts[statusIndex] || '').trim();
+    if (!num || isNaN(+num) || !changedAt || !status) return null;
+    return { num, changedAt, status };
+  }).filter(Boolean);
+}
+
+function applyStatusHistoryData(text, source = 'status-history') {
+  const parsed = parseStatusHistoryRaw(text);
+  if (!parsed.length) return false;
+  statusInfographicState = null;
+  const grouped = new Map();
+  parsed.forEach(item => {
+    if (!grouped.has(item.num)) grouped.set(item.num, []);
+    grouped.get(item.num).push({
+      date: item.changedAt,
+      status: item.status,
+      source,
+    });
+  });
+  grouped.forEach((items, num) => {
+    items.sort((a, b) => a.date - b.date);
+    taskStatusHistory.set(num, items);
+  });
+  persistStatusHistory();
+  if (selectedNum) renderRoadmap(tasks.find(t => t.num === selectedNum) || null);
+  return true;
+}
+
+function applyData(text, source) {
+  const parsed = parseRaw(text);
+  if (!parsed.length) return false;
+  tasks.length = 0;
+  parsed.forEach(t => tasks.push(t));
+  selectedNum = null; currentPage = 1; activeStatusFilter = '';
+  // Update header date range
+  const dates = tasks.map(t=>t.dateCreated).filter(Boolean).sort((a,b)=>a-b);
+  if (dates.length >= 2) {
+    const fmt = d => d.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'});
+    document.getElementById('headerDateRange').textContent = `${fmt(dates[0])} – ${fmt(dates[dates.length-1])}.${dates[dates.length-1].getFullYear()}`;
+  }
+  rebuildFilterOptions();
+  renderAll();
+  return true;
+}
+
+function clearData() {
+  tasks.length = 0;
+  selectedNum = null; currentPage = 1; activeStatusFilter = '';
+  document.getElementById('headerCount').textContent = '—';
+  document.getElementById('headerDateRange').textContent = '—';
+  document.getElementById('statsGrid').innerHTML = '';
+  document.getElementById('taskList').innerHTML = '';
+  document.getElementById('pagination').innerHTML = '';
+  document.getElementById('listCountLabel').textContent = 'Задачі';
+  document.getElementById('analyticsBar').innerHTML = '<div class="astat"><div class="astat-key">Дані очищено</div><div class="astat-val" style="font-size:12px;color:var(--text3)">завантажте новий файл</div></div>';
+  document.getElementById('rightPanel').innerHTML = '<div class="roadmap-empty"><div class="roadmap-empty-icon">◈</div><div class="roadmap-empty-text">Оберіть задачу для перегляду roadmap</div></div>';
+  rebuildFilterOptions();
+  closeConfirm();
+}
+
+function rebuildFilterOptions() {
+  const executors = [...new Set(tasks.map(t=>t.executor).filter(Boolean))].sort();
+  const authors = [...new Set(tasks.map(t=>t.author).filter(Boolean))].sort();
+  const sel1 = document.getElementById('executorFilter');
+  const sel2 = document.getElementById('authorFilter');
+  const v1 = sel1.value, v2 = sel2.value;
+  sel1.innerHTML = '<option value="">Всі виконавці</option>' + executors.map(e=>`<option value="${e}">${e}</option>`).join('');
+  sel2.innerHTML = '<option value="">Всі постановники</option>' + authors.map(a=>`<option value="${a}">${a}</option>`).join('');
+  if (executors.includes(v1)) sel1.value = v1;
+  if (authors.includes(v2)) sel2.value = v2;
+}
+
+// ============================================================
+// SLA SETTINGS & WORKING-HOURS ENGINE
+// ============================================================
+const DEFAULT_SLA = {
+  hourStart: 8,       // work starts at 08:00
+  hourEnd: 18,        // work ends at 18:00 (exclusive)
+  weekdays: [1,2,3,4,5,6],  // Mon=1 … Sun=0; default Mon-Sat
+  holidays: [],       // ['08.03.2026', ...]
+  targetHours: 12,    // SLA target in working hours
+};
+
+let slaSettings = JSON.parse(JSON.stringify(DEFAULT_SLA));
+
+// Load persisted settings
+try {
+  const saved = localStorage.getItem('slaSettings');
+  if (saved) slaSettings = JSON.parse(saved);
+} catch(e) {}
+
+function saveSlaToStorage() {
+  try { localStorage.setItem('slaSettings', JSON.stringify(slaSettings)); } catch(e) {}
+}
+
+function parseHolidayDate(str) {
+  const m = str.trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  return new Date(+m[3], +m[2]-1, +m[1]);
+}
+
+function isHoliday(date) {
+  const key = date.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\s/g,'');
+  // format as dd.mm.yyyy
+  const dd = String(date.getDate()).padStart(2,'0');
+  const mm = String(date.getMonth()+1).padStart(2,'0');
+  const yyyy = date.getFullYear();
+  const k = `${dd}.${mm}.${yyyy}`;
+  return slaSettings.holidays.includes(k);
+}
+
+function isWorkingDay(date) {
+  const dow = date.getDay(); // 0=Sun,1=Mon,...,6=Sat
+  return slaSettings.weekdays.includes(dow) && !isHoliday(date);
+}
+
+/**
+ * Calculate working minutes between two dates.
+ * Only counts time within working hours on working days.
+ */
+function workingMinutes(d1, d2) {
+  if (!d1 || !d2 || d2 <= d1) return 0;
+  const { hourStart, hourEnd } = slaSettings;
+  const workStart = hourStart * 60;   // minutes from midnight
+  const workEnd   = hourEnd * 60;
+  const dayMins   = workEnd - workStart;
+
+  let total = 0;
+  // Walk day by day
+  let cur = new Date(d1);
+  // Align cur to minute
+  cur.setSeconds(0, 0);
+
+  const end = new Date(d2);
+  end.setSeconds(0, 0);
+
+  // Max 365 days safety
+  const maxIter = 365 * 24 * 60;
+  let iter = 0;
+
+  while (cur < end && iter++ < maxIter) {
+    const dayStart = new Date(cur);
+    dayStart.setHours(0,0,0,0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    if (isWorkingDay(dayStart)) {
+      // Clamp current segment to this day's working hours
+      const segStart = new Date(dayStart);
+      segStart.setHours(hourStart, 0, 0, 0);
+      const segEnd = new Date(dayStart);
+      segEnd.setHours(hourEnd, 0, 0, 0);
+
+      const from = new Date(Math.max(cur.getTime(), segStart.getTime()));
+      const to   = new Date(Math.min(end.getTime(), segEnd.getTime()));
+      if (to > from) {
+        total += (to - from) / 60000;
+      }
+    }
+    // Advance to start of next day
+    cur = dayEnd;
+  }
+  return total;
+}
+
+function workingHours(d1, d2) {
+  return workingMinutes(d1, d2) / 60;
+}
+
+function fmtWorkHours(h) {
+  if (h === null || h === undefined) return null;
+  if (h < 1) return `${Math.round(h*60)} хв`;
+  if (h < 8) return `${h.toFixed(1)} р.год`;
+  const days = h / (slaSettings.hourEnd - slaSettings.hourStart);
+  return `${days.toFixed(1)} р.дн`;
+}
+
+function fmtHoursMinutes(totalMinutes) {
+  if (totalMinutes === null || totalMinutes === undefined || Number.isNaN(totalMinutes)) return null;
+  const rounded = Math.max(0, Math.round(totalMinutes));
+  const hours = Math.floor(rounded / 60);
+  const minutes = rounded % 60;
+  return `${hours}:${String(minutes).padStart(2, '0')}`;
+}
+
+function getTaskSlaInfo(task) {
+  if (!task || !task.dateCreated) return null;
+  const endDate = task.dateFinished || task.dateExec;
+  const slaHours = workingHours(task.dateCreated, endDate || new Date());
+  const targetHours = slaSettings.targetHours;
+  const isClosed = !!endDate;
+  const isMet = isClosed ? slaHours <= targetHours : null;
+  return { hours: slaHours, targetHours, endDate, isClosed, isMet };
+}
+
+function getTaskSlaBadge(task) {
+  const info = getTaskSlaInfo(task);
+  if (!info) return '';
+  if (!info.isClosed) return '<span class="badge badge-sla-pending">SLA в роботі</span>';
+  return info.isMet
+    ? '<span class="badge badge-sla-ok">SLA OK</span>'
+    : '<span class="badge badge-sla-bad">SLA FAIL</span>';
+}
+
+function getTaskSlaStateBadge(task) {
+  const info = getTaskSlaInfo(task);
+  if (!info) return '';
+  if (!info.isClosed) {
+    return `<div class="sla-state-badge sla-state-pending">SLA в роботі · ${fmtWorkHours(info.hours)} / ${fmtWorkHours(info.targetHours)}</div>`;
+  }
+  return info.isMet
+    ? `<div class="sla-state-badge sla-state-ok">SLA виконано · ${fmtWorkHours(info.hours)} / ${fmtWorkHours(info.targetHours)}</div>`
+    : `<div class="sla-state-badge sla-state-bad">SLA порушено · ${fmtWorkHours(info.hours)} / ${fmtWorkHours(info.targetHours)}</div>`;
+}
+
+// ============================================================
+// SLA SETTINGS UI
+// ============================================================
+const WEEKDAY_LABELS = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
+
+function openSlaSettings() {
+  // Populate fields from slaSettings
+  document.getElementById('slaHourStart').value = slaSettings.hourStart;
+  document.getElementById('slaHourEnd').value = slaSettings.hourEnd;
+  document.getElementById('slaTargetHours').value = slaSettings.targetHours;
+  renderWeekdayToggles();
+  renderHolidayList();
+  document.getElementById('msg-sla').className = 'modal-msg';
+  document.getElementById('slaOverlay').classList.remove('hidden');
+}
+
+function closeSlaSettings() {
+  document.getElementById('slaOverlay').classList.add('hidden');
+}
+
+function renderWeekdayToggles() {
+  const cont = document.getElementById('slaWeekdays');
+  // 0=Sun..6=Sat, show Mon-Sun order: 1,2,3,4,5,6,0
+  const order = [1,2,3,4,5,6,0];
+  cont.innerHTML = order.map(d => `
+    <button class="wd-btn ${slaSettings.weekdays.includes(d)?'on':''}"
+      onclick="toggleWeekday(${d},this)">${WEEKDAY_LABELS[d]}</button>`).join('');
+}
+
+function toggleWeekday(d, el) {
+  const idx = slaSettings.weekdays.indexOf(d);
+  if (idx >= 0) {
+    if (slaSettings.weekdays.length <= 1) return; // keep at least 1
+    slaSettings.weekdays.splice(idx, 1);
+    el.classList.remove('on');
+  } else {
+    slaSettings.weekdays.push(d);
+    el.classList.add('on');
+  }
+}
+
+function renderHolidayList() {
+  const cont = document.getElementById('slaHolidayList');
+  if (!slaSettings.holidays.length) { cont.innerHTML = '<span style="font-size:11px;color:var(--text3)">Немає виключень</span>'; return; }
+  cont.innerHTML = slaSettings.holidays.map(h => `
+    <span class="holiday-tag">${h}<button onclick="removeHoliday('${h}')">✕</button></span>`).join('');
+}
+
+function addHoliday() {
+  const inp = document.getElementById('slaHolidayInput');
+  const val = inp.value.trim();
+  if (!val) return;
+  const d = parseHolidayDate(val);
+  if (!d) { document.getElementById('msg-sla').className='modal-msg error'; document.getElementById('msg-sla').textContent='Невірний формат дати. Використовуйте дд.мм.рррр'; return; }
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const key = `${dd}.${mm}.${d.getFullYear()}`;
+  if (!slaSettings.holidays.includes(key)) {
+    slaSettings.holidays.push(key);
+    slaSettings.holidays.sort();
+  }
+  inp.value = '';
+  document.getElementById('msg-sla').className = 'modal-msg';
+  renderHolidayList();
+}
+
+function removeHoliday(h) {
+  slaSettings.holidays = slaSettings.holidays.filter(x=>x!==h);
+  renderHolidayList();
+}
+
+function saveSlaSettings() {
+  const hs = +document.getElementById('slaHourStart').value;
+  const he = +document.getElementById('slaHourEnd').value;
+  const tgt = +document.getElementById('slaTargetHours').value;
+  if (isNaN(hs)||isNaN(he)||hs<0||he>24||he<=hs) {
+    document.getElementById('msg-sla').className='modal-msg error';
+    document.getElementById('msg-sla').textContent='Невірний діапазон годин (початок < кінець, 0–24)';
+    return;
+  }
+  if (isNaN(tgt)||tgt<1) {
+    document.getElementById('msg-sla').className='modal-msg error';
+    document.getElementById('msg-sla').textContent='Ціль SLA має бути ≥ 1 год';
+    return;
+  }
+  slaSettings.hourStart = hs;
+  slaSettings.hourEnd = he;
+  slaSettings.targetHours = tgt;
+  saveSlaToStorage();
+  document.getElementById('msg-sla').className='modal-msg success';
+  document.getElementById('msg-sla').textContent=`✓ Збережено. Робочий час: ${hs}:00–${he}:00, ${slaSettings.weekdays.length} дн/тиж, ціль ${tgt} год`;
+  renderAll();
+  setTimeout(closeSlaSettings, 1600);
+}
+
+function resetSlaSettings() {
+  slaSettings = JSON.parse(JSON.stringify(DEFAULT_SLA));
+  saveSlaToStorage();
+  document.getElementById('slaHourStart').value = slaSettings.hourStart;
+  document.getElementById('slaHourEnd').value = slaSettings.hourEnd;
+  document.getElementById('slaTargetHours').value = slaSettings.targetHours;
+  renderWeekdayToggles();
+  renderHolidayList();
+  renderAll();
+}
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+function computeAnalytics(arr) {
+  const total = arr.length;
+  if (!total) return null;
+
+  // — % завершених задач (стрічка 1) —
+  // Рахуємо: скільки зі статусом "Завершене" від усіх, що не "Скасоване"
+  const countable = arr.filter(t => t.status !== 'Скасоване').length;
+  const completedCount = arr.filter(t => t.status === 'Завершене').length;
+  const completedPct = countable ? Math.round(completedCount / countable * 100) : 0;
+
+  // — SLA (стрічка 2): робочий час від створення до завершення vs. ціль —
+  const closedArr = arr.filter(t => (t.status==='Завершене'||t.status==='Виконане') && t.dateCreated && (t.dateFinished||t.dateExec));
+  const slaTarget = slaSettings.targetHours;
+  const slaResults = closedArr.map(t => {
+    const wh = workingHours(t.dateCreated, t.dateFinished||t.dateExec);
+    return { wh, ok: wh <= slaTarget };
+  });
+  const slaOk = slaResults.filter(r => r.ok).length;
+  const slaPct = slaResults.length ? Math.round(slaOk / slaResults.length * 100) : null;
+  const avgSlaHours = slaResults.length ? avg(slaResults.map(r=>r.wh)) : null;
+  const medSlaHours = slaResults.length ? median(slaResults.map(r=>r.wh)) : null;
+
+  // — Avg calendar time (created → finished) —
+  const calTimes = closedArr.map(t => diffMs(t.dateCreated, t.dateFinished||t.dateExec)).filter(v=>v!==null);
+  const avgTotal = avg(calTimes);
+  const medTotal = median(calTimes);
+
+  // — FTR: created → ftrAssigned —
+  const toAssignTimes = arr.filter(t=>t.ftrAssigned&&t.dateCreated).map(t=>diffMs(t.dateCreated,t.ftrAssigned)).filter(v=>v!==null);
+  const avgToAssign = avg(toAssignTimes);
+  const medToAssign = median(toAssignTimes);
+
+  // — FTR: ftrAssigned → ftrAnswer —
+  const ftrTimes = arr.filter(t=>t.ftrAssigned&&t.ftrAnswer).map(t=>diffMs(t.ftrAssigned,t.ftrAnswer)).filter(v=>v!==null);
+  const avgFtr = avg(ftrTimes);
+  const medFtr = median(ftrTimes);
+  const ftrCoverage = arr.filter(t=>t.ftrAssigned).length;
+
+  return {
+    total, countable, completedCount, completedPct,
+    slaOk, slaPct, slaTotal: slaResults.length, avgSlaHours, medSlaHours, slaTarget,
+    avgTotal, medTotal, avgToAssign, medToAssign, avgFtr, medFtr,
+    ftrCoverage, ftrCount: ftrTimes.length
+  };
+}
+
+function renderAnalyticsBar(arr) {
+  const a = computeAnalytics(arr);
+  const bar = document.getElementById('analyticsBar');
+  if (!a) { bar.innerHTML = '<div class="astat"><div class="astat-key">Немає даних</div></div>'; return; }
+
+  const cmpClass = a.completedPct >= 80 ? 'good' : a.completedPct >= 60 ? 'warn' : 'bad';
+  const slaClass = a.slaPct === null ? '' : a.slaPct >= 80 ? 'good' : a.slaPct >= 60 ? 'warn' : 'bad';
+
+  const items = [
+    {
+      key: '% завершених задач',
+      val: `${a.completedPct}%`,
+      cls: cmpClass,
+      sub: `${a.completedCount} Завершено з ${a.countable} активних`
+    },
+    {
+      key: `SLA ≤${a.slaTarget} р.год (${slaSettings.hourStart}:00–${slaSettings.hourEnd}:00)`,
+      val: a.slaPct !== null ? `${a.slaPct}%` : '—',
+      cls: slaClass,
+      sub: a.slaPct !== null
+        ? `${a.slaOk} з ${a.slaTotal} вклались · сер. ${a.avgSlaHours!==null?fmtWorkHours(a.avgSlaHours):'—'}`
+        : 'немає завершених задач з датами'
+    },
+    {
+      key: 'Сер. час (кал.) виконання',
+      val: a.avgTotal !== null ? fmtDur(a.avgTotal) : '—',
+      sub: a.medTotal ? `медіана: ${fmtDur(a.medTotal)}` : ''
+    },
+    {
+      key: 'Створення → виконавець',
+      val: a.avgToAssign ? fmtDur(a.avgToAssign) : '—',
+      sub: a.medToAssign ? `медіана: ${fmtDur(a.medToAssign)}` : `охоплення: ${a.ftrCoverage} задач`
+    },
+    {
+      key: 'Передано → 1-а відповідь',
+      val: a.avgFtr !== null ? fmtDur(a.avgFtr) : '—',
+      sub: a.medFtr ? `медіана: ${fmtDur(a.medFtr)}` : a.ftrCount===0?'немає FTR даних':''
+    },
+  ];
+
+  bar.innerHTML = items.map(it => `
+    <div class="astat">
+      <div class="astat-key">${it.key}</div>
+      <div class="astat-val ${it.cls||''}">${it.val}</div>
+      ${it.sub ? `<div class="astat-sub">${it.sub}</div>` : ''}
+    </div>`).join('');
+}
+
+// ============================================================
+// BADGE / STATUS
+// ============================================================
+function badgeClass(s) {
+  const m = {'Завершене':'b-done','Нове':'b-new','Скасоване':'b-cancel','Відкладене':'b-wait','Очікує на відповідь':'b-wait','Виконане':'b-exec','В роботі':'b-work'};
+  return m[s] || 'b-other';
+}
+
+// ============================================================
+// FILTER
+// ============================================================
+function getFiltered() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const sf = document.getElementById('statusFilter').value;
+  const gf = document.getElementById('groupFilter').value;
+  const ef = document.getElementById('executorFilter').value;
+  const af = document.getElementById('authorFilter').value;
+  const srt = document.getElementById('sortBy').value;
+  let arr = tasks.filter(t => {
+    if (q && !t.title.toLowerCase().includes(q) && !t.num.includes(q)) return false;
+    if (sf && t.status !== sf) return false;
+    if (gf && !t.group.includes(gf)) return false;
+    if (ef && t.executor !== ef) return false;
+    if (af && t.author !== af) return false;
+    if (activeStatusFilter === '__active__' && !isActiveTask(t)) return false;
+    if (activeStatusFilter && activeStatusFilter !== '__active__' && t.status !== activeStatusFilter) return false;
+    return true;
+  });
+  arr.sort((a,b) => {
+    if (srt==='num_asc') return +a.num - +b.num;
+    if (srt==='num_desc') return +b.num - +a.num;
+    if (srt==='date_asc') return (a.dateCreated||0)-(b.dateCreated||0);
+    if (srt==='date_desc') return (b.dateCreated||0)-(a.dateCreated||0);
+    return 0;
+  });
+  return arr;
+}
+
+// ============================================================
+// STATS GRID
+// ============================================================
+function renderStats(all) {
+  const total = all.length;
+  const done = all.filter(t=>t.status==='Завершене').length;
+  const active = all.filter(t=>['В роботі','Виконане','Очікує на відповідь'].includes(t.status)).length;
+  const wait = all.filter(t=>['Нове','Відкладене'].includes(t.status)).length;
+  const cancel = all.filter(t=>t.status==='Скасоване').length;
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card" onclick="toggleStatusFilter('')" style="color:var(--text)"><div class="stat-val">${total}</div><div class="stat-lbl">Всього</div></div>
+    <div class="stat-card" onclick="toggleStatusFilter('Завершене')" style="color:var(--done)"><div class="stat-val">${done}</div><div class="stat-lbl">Завершено</div></div>
+    <div class="stat-card" onclick="toggleStatusFilter('Нове')" style="color:var(--new)"><div class="stat-val">${wait}</div><div class="stat-lbl">Нових</div></div>
+    <div class="stat-card" onclick="toggleStatusFilter('В роботі')" style="color:var(--work)"><div class="stat-val">${active}</div><div class="stat-lbl">В процесі</div></div>
+    <div class="stat-card" onclick="toggleStatusFilter('Скасоване')" style="color:var(--cancel)"><div class="stat-val">${cancel}</div><div class="stat-lbl">Скасовано</div></div>`;
+  document.getElementById('headerCount').textContent = `${total} задач`;
+}
+
+function toggleStatusFilter(s) {
+  activeStatusFilter = activeStatusFilter === s ? '' : s;
+  currentPage = 1;
+  renderAll();
+}
+
+function applyQuickFilter(filter) {
+  const statusSelect = document.getElementById('statusFilter');
+  const slaSelect = document.getElementById('slaFilter');
+
+  if (filter === '__active__') {
+    activeStatusFilter = activeStatusFilter === '__active__' ? '' : '__active__';
+    if (statusSelect) statusSelect.value = '';
+    if (slaSelect) slaSelect.value = '';
+  } else if (filter === '__sla_fail__') {
+    activeStatusFilter = '';
+    if (statusSelect) statusSelect.value = '';
+    if (slaSelect) slaSelect.value = slaSelect.value === 'fail' ? '' : 'fail';
+  } else {
+    activeStatusFilter = activeStatusFilter === filter ? '' : filter;
+    if (statusSelect) statusSelect.value = activeStatusFilter === filter ? filter : '';
+    if (slaSelect) slaSelect.value = '';
+  }
+
+  currentPage = 1;
+  renderAll();
+}
+
+// ============================================================
+// LIST
+// ============================================================
+function renderList(filtered) {
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total/PAGE_SIZE));
+  if (currentPage > pages) currentPage = 1;
+  const slice = filtered.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+  document.getElementById('listCountLabel').textContent = `Задачі (${total})`;
+  document.getElementById('listPageLabel').textContent = pages > 1 ? `${currentPage}/${pages}` : '';
+  const list = document.getElementById('taskList');
+  if (!slice.length) {
+    list.innerHTML = '<div class="no-results"><span style="font-size:22px;opacity:.25">⊘</span><span>Нічого не знайдено</span></div>';
+  } else {
+    list.innerHTML = slice.map(t => `
+      <div class="task-item ${t.num===selectedNum?'active':''}" onclick="selectTask('${t.num}')">
+        <span class="task-num">#${t.num}</span>
+        <span class="task-name">${t.title}</span>
+        <span class="task-item-badges">
+          ${getTaskSlaBadge(t)}
+          <span class="badge ${badgeClass(t.status)}">${t.status}</span>
+        </span>
+      </div>`).join('');
+  }
+  let pag = `<span>${total} задач</span>`;
+  if (pages > 1) {
+    pag = `<div class="page-btns">
+      <button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>
+      <button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>›</button>
+    </div><span>${currentPage} / ${pages}</span>`;
+  }
+  document.getElementById('pagination').innerHTML = pag;
+}
+function goPage(p) { currentPage=p; renderAll(); }
+
+// ============================================================
+// ROADMAP
+// ============================================================
+function durClass(h) {
+  if (!h) return '';
+  if (h < 2) return 'fast';
+  if (h < 24) return '';
+  return h < 72 ? 'slow' : 'veryslow';
+}
+
+function renderRoadmap(t) {
+  const panel = document.getElementById('rightPanel');
+  if (!t) {
+    panel.innerHTML = '<div class="roadmap-empty"><div class="roadmap-empty-icon">◈</div><div class="roadmap-empty-text">Оберіть задачу для перегляду roadmap</div></div>';
+    return;
+  }
+
+  const totalDur = fmtDur(diffMs(t.dateCreated, t.dateFinished||t.dateExec));
+  const slaInfo = getTaskSlaInfo(t);
+  const slaDur = slaInfo ? fmtWorkHours(slaInfo.hours) : null;
+  const slaStateBadge = getTaskSlaStateBadge(t);
+  const steps = [
+    { label:'Створено задачу', date:t.dateCreated, prev:null },
+    { label:'Передано виконавцю', date:t.ftrAssigned, prev:t.dateCreated },
+    { label:'Перша відповідь (FTR)', date:t.ftrAnswer, prev:t.ftrAssigned||t.dateCreated },
+    { label:'Виконано', date:t.dateExec, prev:t.ftrAnswer||t.ftrAssigned||t.dateCreated },
+    { label:'Завершено', date:t.dateFinished, prev:t.dateExec||t.ftrAnswer||t.ftrAssigned||t.dateCreated },
+  ];
+
+  const tlHtml = steps.map((s,i) => {
+    const done = !!s.date;
+    const dur = s.prev && s.date ? fmtDur(diffMs(s.prev, s.date)) : null;
+    const durH = s.prev && s.date ? diffHours(s.prev, s.date) : null;
+    const lineClass = i < steps.length-1 && steps[i+1] && steps[i+1].date ? 'done-line' : '';
+    return `<div class="tl-step">
+      <div class="tl-left">
+        <div class="tl-dot-wrap ${done?'tl-dot-done':'tl-dot-pending'}">${i+1}</div>
+        ${i < steps.length-1 ? `<div class="tl-line ${lineClass}"></div>` : ''}
+      </div>
+      <div class="tl-body">
+        <div class="tl-label ${done?'':'dim'}">${s.label}</div>
+        ${done ? `<div class="tl-date">${fmtDate(s.date)}</div>` : '<div class="tl-na">— не заповнено</div>'}
+        ${dur ? `<span class="tl-dur ${durClass(durH)}">⏱ +${dur}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Executor task stats
+  const exTasks = tasks.filter(tt => tt.executor === t.executor && t.executor);
+  const exDone = exTasks.filter(tt => tt.status==='Завершене').length;
+  const exPct = exTasks.length ? Math.round(exDone/exTasks.length*100) : 0;
+  const byStatus = {};
+  exTasks.forEach(tt => { byStatus[tt.status]=(byStatus[tt.status]||0)+1; });
+  const colors = {'Завершене':'#22c986','Нове':'#3b8bff','Скасоване':'#ff4d6d','Виконане':'#06d6a0','Відкладене':'#ffb340','В роботі':'#a78bfa','Очікує на відповідь':'#ffb340'};
+  const chartHtml = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]).map(([s,c]) => `
+    <div class="chart-row">
+      <div class="chart-label">${s}</div>
+      <div class="chart-bar-wrap"><div class="chart-bar" style="width:${Math.round(c/exTasks.length*100)}%;background:${colors[s]||'#888'}"></div></div>
+      <div class="chart-val">${c}</div>
+    </div>`).join('');
+
+  panel.innerHTML = `
+    <div class="panel-card fade-in">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;">#${t.num} · ${t.group.split('/')[0].trim()}</div>
+          <div class="task-detail-title">${t.title}</div>
+        </div>
+        <span class="badge ${badgeClass(t.status)}" style="font-size:9px;padding:3px 9px;">${t.status}</span>
+      </div>
+      ${totalDur ? `<div class="total-time-badge">⏱ Загальний час: ${totalDur}</div>` : ''}
+      <div class="detail-badges">
+        ${slaDur ? `<div class="sla-time-badge">🕒 SLA-час: ${slaDur}</div>` : ''}
+        ${slaStateBadge}
+      </div>
+      <div class="detail-meta">
+        <div class="meta-item"><div class="meta-key">Постановник</div><div class="meta-val">${t.author||'—'}</div></div>
+        <div class="meta-item"><div class="meta-key">Виконавець</div><div class="meta-val">${t.executor||'—'}</div></div>
+        <div class="meta-item"><div class="meta-key">Дата створення</div><div class="meta-val">${fmtDate(t.dateCreated)||'—'}</div></div>
+        ${t.executor?`<div class="meta-item"><div class="meta-key">Виконавець закрив</div><div class="meta-val">${exDone}/${exTasks.length} (${exPct}%)</div></div>`:''}
+      </div>
+    </div>
+
+    <div class="panel-card fade-in">
+      <div class="panel-title">Roadmap задачі</div>
+      <div class="timeline">${tlHtml}</div>
+    </div>
+
+    ${t.executor ? `<div class="panel-card fade-in">
+      <div class="panel-title">Виконавець: ${t.executor}</div>
+      ${chartHtml}
+    </div>` : ''}`;
+}
+
+// ============================================================
+// MAIN RENDER
+// ============================================================
+function selectTask(num) {
+  selectedNum = num;
+  renderRoadmap(tasks.find(t=>t.num===num)||null);
+  renderAll();
+}
+
+function renderAll() {
+  const filtered = getFiltered();
+  renderStats(filtered);
+  renderAnalyticsBar(filtered);
+  renderList(filtered);
+}
+
+// ============================================================
+// MODAL CONTROLS
+// ============================================================
+function openModal() { document.getElementById('modalOverlay').classList.remove('hidden'); }
+function closeModal() { document.getElementById('modalOverlay').classList.add('hidden'); }
+function confirmClear() { document.getElementById('confirmOverlay').classList.remove('hidden'); }
+function closeConfirm() { document.getElementById('confirmOverlay').classList.add('hidden'); }
+function switchModalTab(tab, el) {
+  document.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.modal-section').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+function showMsg(id, type, text) {
+  const el = document.getElementById(id);
+  el.className = 'modal-msg ' + type;
+  el.textContent = text;
+}
+
+// File upload
+function handleFileInput(input) {
+  const file = input.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    const ok = applyData(e.target.result, file.name);
+    if (ok) { showMsg('msg-file','success',`✓ Завантажено ${tasks.length} задач з «${file.name}»`); setTimeout(closeModal,1400); }
+    else showMsg('msg-file','error','✗ Не вдалося розпізнати дані. Перевірте формат файлу (TSV з Google Sheets).');
+  };
+  r.readAsText(file,'UTF-8');
+}
+
+// Drag & drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', ()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.classList.remove('dragover');
+  const file = e.dataTransfer.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    const ok = applyData(ev.target.result, file.name);
+    if (ok) { showMsg('msg-file','success',`✓ Завантажено ${tasks.length} задач`); setTimeout(closeModal,1400); }
+    else showMsg('msg-file','error','✗ Не вдалося розпізнати формат.');
+  };
+  r.readAsText(file,'UTF-8');
+});
+
+// URL fetch
+async function loadFromUrl() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { showMsg('msg-url','error','Вкажіть URL'); return; }
+  showMsg('msg-url','info','⏳ Завантаження...');
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const ok = applyData(text, url);
+    if (ok) { showMsg('msg-url','success',`✓ Завантажено ${tasks.length} задач`); setTimeout(closeModal,1400); }
+    else showMsg('msg-url','error','✗ Дані отримано, але формат не розпізнано.');
+  } catch(err) {
+    showMsg('msg-url','error',`✗ ${err.message}`);
+  }
+}
+
+// Paste
+function loadFromPaste() {
+  const text = document.getElementById('pasteInput').value;
+  if (!text.trim()) { showMsg('msg-paste','error','Поле порожнє'); return; }
+  const ok = applyData(text,'вставлений текст');
+  if (ok) { showMsg('msg-paste','success',`✓ Завантажено ${tasks.length} задач`); setTimeout(closeModal,1400); }
+  else showMsg('msg-paste','error','✗ Не вдалося розпізнати. Переконайтесь що колонки розділені табуляцією (TSV).');
+}
+
+function handleStatusHistoryFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = event => {
+    const ok = applyStatusHistoryData(event.target.result, file.name);
+    showMsg('msg-history', ok ? 'success' : 'error', ok ? `✓ Імпортовано історію статусів з «${file.name}»` : '✗ Не вдалося розпізнати історію статусів');
+    if (ok) setTimeout(closeModal, 1400);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function loadStatusHistoryFromPaste() {
+  const text = document.getElementById('statusHistoryPasteInput').value;
+  if (!text.trim()) {
+    showMsg('msg-history', 'error', 'Поле порожнє');
+    return;
+  }
+  const ok = applyStatusHistoryData(text, 'status-history paste');
+  showMsg('msg-history', ok ? 'success' : 'error', ok ? '✓ Історію статусів імпортовано' : '✗ Не вдалося розпізнати історію статусів');
+  if (ok) setTimeout(closeModal, 1400);
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+applyData(RAW_BUILTIN, 'built-in');
+</script>
+<script>
+const DASHBOARD_RUNTIME_CONFIG = window.DASHBOARD_CONFIG || {};
+const IMPORT_STORAGE_KEY = (DASHBOARD_RUNTIME_CONFIG.storageKeys && DASHBOARD_RUNTIME_CONFIG.storageKeys.imports) || 'dashboardImports';
+const STATUS_HISTORY_STORAGE_KEY = (DASHBOARD_RUNTIME_CONFIG.storageKeys && DASHBOARD_RUNTIME_CONFIG.storageKeys.statusHistory) || 'dashboardStatusHistory';
+const DEFAULT_SOURCE_NAME = DASHBOARD_RUNTIME_CONFIG.defaultSourceName || 'built-in';
+let importSources = [];
+
+function makeSourceId() {
+  return `src_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function toDateInputValue(date) {
+  if (!date) return '';
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function ensureDateChartPanel() {
+  const panel = document.getElementById('rightPanel');
+  if (!panel) return null;
+  let chartPanel = document.getElementById('dateChartPanel');
+  if (!chartPanel) {
+    chartPanel = document.createElement('div');
+    chartPanel.className = 'panel-card';
+    chartPanel.id = 'dateChartPanel';
+    chartPanel.innerHTML = `
+      <div class="panel-title">Динаміка за датами</div>
+      <div class="timeline-chart" id="dateChart"></div>
+    `;
+    panel.prepend(chartPanel);
+  }
+  return document.getElementById('dateChart');
+}
+
+function renderStoredSources() {
+  const el = document.getElementById('storedSources');
+  if (!el) return;
+  if (!importSources.length) {
+    el.innerHTML = '<span style="font-size:11px;color:var(--text3)">Збережених імпортів ще немає</span>';
+    return;
+  }
+  el.innerHTML = importSources.map(item => `
+    <span class="source-chip">
+      ${item.name}
+      <button type="button" onclick="removeStoredImport('${item.id}')">×</button>
+    </span>
+  `).join('');
+}
+
+function rebuildSourceFilterOptions() {
+  const select = document.getElementById('sourceFilter');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = '<option value="">Всі джерела</option>' + importSources.map(item => `<option value="${item.id}">${item.name}</option>`).join('');
+  if ([...select.options].some(option => option.value === current)) {
+    select.value = current;
+  }
+  const summary = document.getElementById('sourceSummary');
+  if (summary) {
+    summary.textContent = importSources.length
+      ? `Збережено ${importSources.length} джерел даних. Можна фільтрувати по джерелу та датах.`
+      : 'Джерела даних зберігаються локально в browser storage.';
+  }
+}
+
+function persistImports() {
+  try {
+    localStorage.setItem(IMPORT_STORAGE_KEY, JSON.stringify(importSources));
+  } catch (error) {}
+}
+
+function serializeStatusHistory() {
+  return [...taskStatusHistory.entries()].map(([num, items]) => ({
+    num,
+    items: items.map(item => ({
+      date: item.date instanceof Date ? item.date.toISOString() : item.date,
+      status: item.status,
+      source: item.source || '',
+    })),
+  }));
+}
+
+function persistStatusHistory() {
+  try {
+    localStorage.setItem(STATUS_HISTORY_STORAGE_KEY, JSON.stringify(serializeStatusHistory()));
+  } catch (error) {}
+}
+
+function restoreStoredStatusHistory() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STATUS_HISTORY_STORAGE_KEY) || '[]');
+    if (!stored.length) return false;
+    taskStatusHistory = new Map();
+    stored.forEach(entry => {
+      const items = (entry.items || []).map(item => ({
+        date: item.date ? new Date(item.date) : null,
+        status: item.status,
+        source: item.source || '',
+      })).filter(item => item.date && item.status);
+      if (items.length) {
+        items.sort((a, b) => a.date - b.date);
+        taskStatusHistory.set(entry.num, items);
+      }
+    });
+    return taskStatusHistory.size > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+function syncDateFilterRange() {
+  const allDates = tasks.flatMap(task => [task.dateCreated, task.dateFinished || task.dateExec]).filter(Boolean).sort((a, b) => a - b);
+  const from = document.getElementById('dateFromFilter');
+  const to = document.getElementById('dateToFilter');
+  if (!from || !to || !allDates.length) return;
+  if (!from.value) from.value = toDateInputValue(allDates[0]);
+  if (!to.value) to.value = toDateInputValue(allDates[allDates.length - 1]);
+}
+
+function clearDateFilters() {
+  const from = document.getElementById('dateFromFilter');
+  const to = document.getElementById('dateToFilter');
+  if (from) from.value = '';
+  if (to) to.value = '';
+  renderAll();
+}
+
+function buildDateBuckets(arr) {
+  const map = new Map();
+  arr.forEach(task => {
+    if (task.dateCreated) {
+      const key = toDateInputValue(task.dateCreated);
+      if (!map.has(key)) map.set(key, { created: 0, done: 0 });
+      map.get(key).created += 1;
+    }
+    const doneAt = task.dateFinished || task.dateExec;
+    if (doneAt) {
+      const key = toDateInputValue(doneAt);
+      if (!map.has(key)) map.set(key, { created: 0, done: 0 });
+      map.get(key).done += 1;
+    }
+  });
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function renderDateChart(arr) {
+  const cont = ensureDateChartPanel();
+  if (!cont) return;
+  const buckets = buildDateBuckets(arr);
+  if (!buckets.length) {
+    cont.innerHTML = '<div class="timeline-chart-empty">Немає даних для графіка в обраному періоді</div>';
+    return;
+  }
+  const width = Math.max(860, buckets.length * 72);
+  const height = 320;
+  const pad = { top: 20, right: 24, bottom: 52, left: 46 };
+  const innerWidth = width - pad.left - pad.right;
+  const innerHeight = height - pad.top - pad.bottom;
+  const maxValue = Math.max(...buckets.flatMap(([, item]) => [item.created, item.done]), 1);
+  const stepX = buckets.length > 1 ? innerWidth / (buckets.length - 1) : innerWidth / 2;
+  const yFor = value => pad.top + innerHeight - (value / maxValue) * innerHeight;
+  const xFor = index => pad.left + (buckets.length > 1 ? index * stepX : innerWidth / 2);
+  const createdPoints = buckets.map(([, item], index) => `${xFor(index)},${yFor(item.created)}`).join(' ');
+  const donePoints = buckets.map(([, item], index) => `${xFor(index)},${yFor(item.done)}`).join(' ');
+  const yTicks = Array.from({ length: Math.min(maxValue, 5) + 1 }, (_, index) => Math.round(maxValue * index / Math.min(maxValue, 5)));
+  const uniqueTicks = [...new Set(yTicks)].reverse();
+  const labelStep = buckets.length > 14 ? Math.ceil(buckets.length / 10) : 1;
+
+  cont.innerHTML = `
+    <div class="timeline-chart-stage">
+    <svg class="timeline-chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" aria-label="Графік створених і завершених задач" style="width:${width}px">
+      ${uniqueTicks.map(value => {
+        const y = yFor(value);
+        return `
+          <line class="timeline-chart-gridline" x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}"></line>
+          <text class="timeline-chart-label" x="${pad.left - 8}" y="${y + 3}" text-anchor="end">${value}</text>
+        `;
+      }).join('')}
+      <line class="timeline-chart-axis" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}"></line>
+      <line class="timeline-chart-axis" x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}"></line>
+      <polyline class="timeline-chart-path-created" points="${createdPoints}"></polyline>
+      <polyline class="timeline-chart-path-done" points="${donePoints}"></polyline>
+      ${buckets.map(([, item], index) => {
+        const x = xFor(index);
+        const dateKey = buckets[index][0];
+        const dt = new Date(`${dateKey}T00:00:00`);
+        const fullLabel = dt.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        return `
+          <circle class="timeline-chart-dot-created" cx="${x}" cy="${yFor(item.created)}" r="4">
+            <title>${fullLabel} • Створено: ${item.created}</title>
+          </circle>
+          <circle class="timeline-chart-dot-done" cx="${x}" cy="${yFor(item.done)}" r="4">
+            <title>${fullLabel} • Завершено: ${item.done}</title>
+          </circle>
+        `;
+      }).join('')}
+      ${buckets.map(([dateKey], index) => {
+        if (index % labelStep !== 0 && index !== buckets.length - 1) return '';
+        const x = xFor(index);
+        const dt = new Date(`${dateKey}T00:00:00`);
+        const label = dt.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+        return `<text class="timeline-chart-label" x="${x}" y="${height - 14}" text-anchor="middle">${label}</text>`;
+      }).join('')}
+    </svg>
+    </div>
+    <div class="timeline-chart-legend">
+      <span><i class="created"></i>Створено</span>
+      <span><i class="done"></i>Завершено</span>
+    </div>
+  `;
+}
+
+async function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = event => resolve(event.target.result);
+    reader.onerror = reject;
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+function applyMultipleSources(entries) {
+  const nextTasks = [];
+  const nextSources = [];
+  entries.forEach((entry, index) => {
+    const sourceId = entry.id || makeSourceId();
+    const sourceName = entry.name || `source-${index + 1}`;
+    const parsed = parseRaw(entry.text || '');
+    if (!parsed.length) return;
+    parsed.forEach(task => {
+      task.sourceId = sourceId;
+      task.sourceName = sourceName;
+      nextTasks.push(task);
+    });
+    nextSources.push({
+      id: sourceId,
+      name: sourceName,
+      text: entry.text,
+      addedAt: entry.addedAt || new Date().toISOString(),
+    });
+  });
+  if (!nextTasks.length) return false;
+  tasks.length = 0;
+  nextTasks.sort((a, b) => (+b.num) - (+a.num)).forEach(task => tasks.push(task));
+  importSources = nextSources;
+  persistImports();
+  selectedNum = null;
+  currentPage = 1;
+  activeStatusFilter = '';
+  const dates = tasks.map(task => task.dateCreated).filter(Boolean).sort((a, b) => a - b);
+  document.getElementById('headerDateRange').textContent = dates.length
+    ? `${dates[0].toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })} – ${dates[dates.length - 1].toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })}.${dates[dates.length - 1].getFullYear()}`
+    : '—';
+  rebuildFilterOptions();
+  rebuildSourceFilterOptions();
+  renderStoredSources();
+  syncDateFilterRange();
+  renderRoadmap(null);
+  renderAll();
+  return true;
+}
+
+async function handleFolderInput(input) {
+  const files = [...(input.files || [])].filter(file => /\.(tsv|csv|txt)$/i.test(file.name));
+  if (!files.length) {
+    showMsg('msg-folder', 'error', 'У папці не знайдено TSV/CSV/TXT файлів');
+    return;
+  }
+  const entries = await Promise.all(files.map(async file => ({
+    name: file.webkitRelativePath || file.name,
+    text: await readFileAsText(file),
+  })));
+  const ok = applyMultipleSources(entries);
+  showMsg('msg-folder', ok ? 'success' : 'error', ok ? `Завантажено ${files.length} файлів, задач: ${tasks.length}` : 'Не вдалося розпізнати дані з папки');
+  if (ok) setTimeout(closeModal, 1400);
+}
+
+async function pickDataDirectory() {
+  if (!window.showDirectoryPicker) {
+    showMsg('msg-folder', 'info', 'Цей browser не підтримує пряме відкриття папки. Використайте вибір папки вище.');
+    return;
+  }
+  try {
+    const dirHandle = await window.showDirectoryPicker();
+    const entries = [];
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind !== 'file' || !/\.(tsv|csv|txt)$/i.test(entry.name)) continue;
+      const file = await entry.getFile();
+      entries.push({ name: entry.name, text: await file.text() });
+    }
+    const ok = applyMultipleSources(entries);
+    showMsg('msg-folder', ok ? 'success' : 'error', ok ? `Завантажено ${entries.length} файлів з папки` : 'У папці не знайдено коректних файлів');
+    if (ok) setTimeout(closeModal, 1400);
+  } catch (error) {
+    showMsg('msg-folder', 'error', `Не вдалося відкрити папку: ${error.message}`);
+  }
+}
+
+function restoreStoredImports(silent = false) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(IMPORT_STORAGE_KEY) || '[]');
+    if (!stored.length) {
+      if (!silent) showMsg('msg-folder', 'info', 'Збережених імпортів немає');
+      return false;
+    }
+    const ok = applyMultipleSources(stored);
+    if (!silent) showMsg('msg-folder', ok ? 'success' : 'error', ok ? `Відновлено ${stored.length} джерел` : 'Не вдалося відновити збережені дані');
+    return ok;
+  } catch (error) {
+    if (!silent) showMsg('msg-folder', 'error', 'Пошкоджені збережені дані в localStorage');
+    return false;
+  }
+}
+
+function removeStoredImport(id) {
+  const remaining = importSources.filter(item => item.id !== id);
+  if (!remaining.length) {
+    importSources = [];
+    persistImports();
+    clearData();
+    rebuildSourceFilterOptions();
+    renderStoredSources();
+    return;
+  }
+  applyMultipleSources(remaining);
+}
+
+function updateHeroMeta() {
+  const heroDate = document.getElementById('heroDateText');
+  const heroSourceCount = document.getElementById('heroSourceCount');
+  const heroSlaTarget = document.getElementById('heroSlaTarget');
+  const heroSlaSchedule = document.getElementById('heroSlaSchedule');
+  if (heroDate) {
+    const dates = tasks.map(task => task.dateCreated).filter(Boolean).sort((a, b) => a - b);
+    heroDate.textContent = dates.length
+      ? `${dates[0].toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })}–${dates[dates.length - 1].toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })}`
+      : '—';
+  }
+  if (heroSourceCount) heroSourceCount.textContent = String(importSources.length);
+  if (heroSlaTarget) heroSlaTarget.textContent = `${slaSettings.targetHours} год`;
+  if (heroSlaSchedule) heroSlaSchedule.textContent = `${slaSettings.hourStart}:00–${slaSettings.hourEnd}:00 • ${slaSettings.weekdays.length} робочих днів`;
+}
+
+function ensureHeaderVersion() {
+  const logo = document.querySelector('.header-logo');
+  if (!logo || logo.querySelector('.header-version')) return;
+  const badge = document.createElement('span');
+  badge.className = 'header-version';
+  badge.textContent = DASHBOARD_VERSION;
+  logo.appendChild(badge);
+}
+
+function getDashboardFilterState() {
+  return {
+    q: document.getElementById('searchInput')?.value.toLowerCase() || '',
+    status: document.getElementById('statusFilter')?.value || '',
+    group: document.getElementById('groupFilter')?.value || '',
+    executor: document.getElementById('executorFilter')?.value || '',
+    author: document.getElementById('authorFilter')?.value || '',
+    sortBy: document.getElementById('sortBy')?.value || 'date_desc',
+    source: document.getElementById('sourceFilter')?.value || '',
+    sla: document.getElementById('slaFilter')?.value || '',
+    dateFrom: document.getElementById('dateFromFilter')?.value || '',
+    dateTo: document.getElementById('dateToFilter')?.value || '',
+  };
+}
+
+function filterTasksCollection(sourceTasks, options = {}) {
+  const state = options.state || getDashboardFilterState();
+  const customRange = options.customRange || null;
+  const from = customRange && customRange.from !== undefined
+    ? customRange.from
+    : (state.dateFrom ? new Date(`${state.dateFrom}T00:00:00`) : null);
+  const to = customRange && customRange.to !== undefined
+    ? customRange.to
+    : (state.dateTo ? new Date(`${state.dateTo}T23:59:59`) : null);
+
+  const arr = sourceTasks.filter(t => {
+    if (state.q && !t.title.toLowerCase().includes(state.q) && !t.num.includes(state.q)) return false;
+    if (state.status && t.status !== state.status) return false;
+    if (state.group && !t.group.includes(state.group)) return false;
+    if (state.executor && t.executor !== state.executor) return false;
+    if (state.author && t.author !== state.author) return false;
+    if (activeStatusFilter === '__active__' && !isActiveTask(t)) return false;
+    if (activeStatusFilter && activeStatusFilter !== '__active__' && t.status !== activeStatusFilter) return false;
+    if (state.source && t.sourceId !== state.source) return false;
+    if ((from || to) && !t.dateCreated) return false;
+    if (from && t.dateCreated < from) return false;
+    if (to && t.dateCreated > to) return false;
+
+    if (state.sla) {
+      const info = getTaskSlaInfo(t);
+      if (state.sla === 'no_data' && info) return false;
+      if (state.sla === 'no_data' && !info) return true;
+      if (!info) return false;
+      if (state.sla === 'fail' && (!info.isClosed || info.isMet !== false)) return false;
+      if (state.sla === 'ok' && (!info.isClosed || info.isMet !== true)) return false;
+      if (state.sla === 'progress' && info.isClosed) return false;
+    }
+
+    return true;
+  });
+
+  arr.sort((a, b) => {
+    if (state.sortBy === 'num_asc') return +a.num - +b.num;
+    if (state.sortBy === 'num_desc') return +b.num - +a.num;
+    if (state.sortBy === 'date_asc') return (a.dateCreated || 0) - (b.dateCreated || 0);
+    if (state.sortBy === 'date_desc') return (b.dateCreated || 0) - (a.dateCreated || 0);
+    return 0;
+  });
+
+  return arr;
+}
+
+function resolveInfographicRange(filtered) {
+  const localFrom = document.getElementById('infoDateFrom')?.value || '';
+  const localTo = document.getElementById('infoDateTo')?.value || '';
+  const hasLocalRange = !!(localFrom || localTo);
+  const customRange = hasLocalRange
+    ? {
+        from: localFrom ? new Date(`${localFrom}T00:00:00`) : null,
+        to: localTo ? new Date(`${localTo}T23:59:59`) : null
+      }
+    : null;
+
+  const dates = filtered.map(task => task.dateCreated).filter(Boolean).sort((a, b) => a - b);
+  const fallbackFrom = customRange?.from || (dates[0] || null);
+  const fallbackTo = customRange?.to || (dates[dates.length - 1] || null);
+
+  return {
+    hasLocalRange,
+    customRange,
+    from: fallbackFrom,
+    to: fallbackTo,
+  };
+}
+
+function computeInfographicMetrics() {
+  const state = getDashboardFilterState();
+  const initialSelection = filterTasksCollection(tasks, { state });
+  const range = resolveInfographicRange(initialSelection);
+  const selectedTasks = range.hasLocalRange
+    ? filterTasksCollection(tasks, { state: { ...state, dateFrom: '', dateTo: '' }, customRange: range.customRange })
+    : initialSelection;
+  const analytics = computeAnalytics(selectedTasks);
+  return { tasks: selectedTasks, analytics, range };
+}
+
+function computeStatusInfographicMetrics() {
+  const base = computeInfographicMetrics();
+  const stats = new Map();
+  base.tasks.forEach(task => {
+    const history = taskStatusHistory.get(task.num) || [];
+    history.forEach((item, index) => {
+      const next = history[index + 1];
+      if (!next) return;
+      if (base.range.from && item.date < base.range.from) return;
+      if (base.range.to && item.date > base.range.to) return;
+      const ms = diffMs(item.date, next.date);
+      if (ms === null) return;
+      if (!stats.has(item.status)) stats.set(item.status, { status: item.status, totalMs: 0, count: 0, maxMs: 0 });
+      const entry = stats.get(item.status);
+      entry.totalMs += ms;
+      entry.count += 1;
+      entry.maxMs = Math.max(entry.maxMs, ms);
+    });
+  });
+
+  const statuses = [...stats.values()].map(item => ({
+    ...item,
+    avgMs: item.count ? item.totalMs / item.count : 0,
+  })).sort((a, b) => b.avgMs - a.avgMs || b.totalMs - a.totalMs);
+
+  return {
+    ...base,
+    statuses,
+  };
+}
+
+function buildInfographicCanvas(payload) {
+  const { analytics, range } = payload;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1600;
+  canvas.height = 900;
+  const ctx = canvas.getContext('2d');
+  const accent = '#ff9b38';
+  const accentSoft = '#ffbc73';
+  const green = '#22c986';
+  const text = '#f5f2ff';
+  const muted = '#a09ab8';
+  const border = '#2c273a';
+
+  const bg = ctx.createLinearGradient(0, 0, 1600, 900);
+  bg.addColorStop(0, '#0b0911');
+  bg.addColorStop(1, '#14111d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  for (let x = 0; x < canvas.width; x += 56) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 56) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+
+  const glow = ctx.createRadialGradient(1240, 120, 0, 1240, 120, 280);
+  glow.addColorStop(0, 'rgba(255,155,56,0.24)');
+  glow.addColorStop(1, 'rgba(255,155,56,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = muted;
+  ctx.font = '600 22px JetBrains Mono';
+  ctx.fillText('SUP SPACE // KPI SNAPSHOT', 92, 84);
+
+  ctx.fillStyle = text;
+  ctx.font = '700 68px Unbounded';
+  ctx.fillText('Показники підтримки', 92, 170);
+
+  ctx.fillStyle = muted;
+  ctx.font = '500 28px JetBrains Mono';
+  ctx.fillText(`з ${fmtShortDate(range.from)} по ${fmtShortDate(range.to)}`, 96, 222);
+
+  const cards = [
+    { x: 92, y: 286, w: 676, h: 216, value: analytics?.slaPct !== null ? `${analytics.slaPct}%` : '—', label: 'SLA виконано', sub: analytics?.slaTotal ? `${analytics.slaOk} із ${analytics.slaTotal} задач` : 'Недостатньо даних', color: accent },
+    { x: 832, y: 286, w: 676, h: 216, value: analytics ? `${analytics.completedPct}%` : '—', label: 'Closed Tickets', sub: analytics ? `${analytics.completedCount} завершено` : 'Недостатньо даних', color: green },
+    { x: 92, y: 542, w: 676, h: 176, value: analytics ? fmtDurCompact(analytics.avgFtr) : '—', label: 'Середній час відповіді', sub: '', color: accentSoft },
+    { x: 832, y: 542, w: 676, h: 176, value: analytics && analytics.avgSlaHours !== null ? fmtDurCompact(analytics.avgSlaHours * 3600000) : '—', label: 'Середній час виконання', sub: '', color: '#70a2ff' },
+  ];
+
+  cards.forEach(card => {
+    ctx.fillStyle = 'rgba(17,17,24,0.9)';
+    roundRect(ctx, card.x, card.y, card.w, card.h, 28);
+    ctx.fill();
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 2;
+    roundRect(ctx, card.x, card.y, card.w, card.h, 28);
+    ctx.stroke();
+
+    ctx.fillStyle = card.color;
+    ctx.fillRect(card.x + 26, card.y + card.h - 10, card.w - 52, 4);
+
+    ctx.fillStyle = text;
+    ctx.font = '700 84px Unbounded';
+    ctx.fillText(card.value, card.x + 34, card.y + 102);
+
+    ctx.fillStyle = text;
+    ctx.font = '600 28px JetBrains Mono';
+    ctx.fillText(card.label, card.x + 36, card.y + 146);
+
+    if (card.sub) {
+      ctx.fillStyle = muted;
+      ctx.font = '500 22px JetBrains Mono';
+      ctx.fillText(card.sub, card.x + 36, card.y + card.h - 34);
+    }
+  });
+
+  return canvas;
+}
+
+function buildStatusInfographicCanvas(payload) {
+  const statuses = payload.statuses || [];
+  const rows = Math.max(statuses.length, 1);
+  const canvas = document.createElement('canvas');
+  canvas.width = 1600;
+  canvas.height = Math.min(1480, Math.max(900, 320 + rows * 92));
+  const ctx = canvas.getContext('2d');
+  const accent = '#ff9b38';
+  const red = '#ff5b77';
+  const text = '#f5f2ff';
+  const muted = '#a09ab8';
+  const border = '#2c273a';
+
+  const bg = ctx.createLinearGradient(0, 0, 1600, canvas.height);
+  bg.addColorStop(0, '#0b0911');
+  bg.addColorStop(1, '#16111e');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  for (let x = 0; x < canvas.width; x += 56) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = muted;
+  ctx.font = '600 22px JetBrains Mono';
+  ctx.fillText('SUP SPACE // STATUS BOTTLENECKS', 92, 84);
+
+  ctx.fillStyle = text;
+  ctx.font = '700 60px Unbounded';
+  ctx.fillText('Де задачі застрягають', 92, 162);
+
+  ctx.fillStyle = muted;
+  ctx.font = '500 28px JetBrains Mono';
+  ctx.fillText(`з ${fmtShortDate(payload.range.from)} по ${fmtShortDate(payload.range.to)}`, 96, 214);
+
+  const topStatus = statuses[0];
+  ctx.fillStyle = 'rgba(17,17,24,0.9)';
+  roundRect(ctx, 92, 254, 1416, 110, 26);
+  ctx.fill();
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 2;
+  roundRect(ctx, 92, 254, 1416, 110, 26);
+  ctx.stroke();
+  ctx.fillStyle = accent;
+  ctx.font = '600 24px JetBrains Mono';
+  ctx.fillText(topStatus ? `Найкритичніший статус: ${topStatus.status}` : 'Немає даних по статусах у вибраному періоді', 126, 312);
+  ctx.fillStyle = text;
+  ctx.font = '700 30px Unbounded';
+  ctx.fillText(topStatus ? fmtDurCompact(topStatus.avgMs) : '—', 126, 348);
+  ctx.fillStyle = muted;
+  ctx.font = '500 20px JetBrains Mono';
+  ctx.fillText(topStatus ? `середній час перебування • максимум ${fmtDur(topStatus.maxMs)}` : 'імпортуйте історію статусів для побудови карти', 310, 346);
+
+  if (!statuses.length) return canvas;
+
+  const maxAvg = Math.max(...statuses.map(item => item.avgMs), 1);
+  let y = 414;
+  statuses.slice(0, 10).forEach((item, index) => {
+    ctx.fillStyle = 'rgba(17,17,24,0.88)';
+    roundRect(ctx, 92, y, 1416, 72, 20);
+    ctx.fill();
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, 92, y, 1416, 72, 20);
+    ctx.stroke();
+
+    const barWidth = Math.max(24, (item.avgMs / maxAvg) * 620);
+    ctx.fillStyle = index === 0 ? red : accent;
+    roundRect(ctx, 504, y + 21, barWidth, 28, 14);
+    ctx.fill();
+
+    ctx.fillStyle = text;
+    ctx.font = '600 24px JetBrains Mono';
+    ctx.fillText(`${index + 1}. ${item.status}`, 122, y + 45);
+
+    ctx.fillStyle = muted;
+    ctx.font = '500 18px JetBrains Mono';
+    ctx.fillText(`${item.count} переходів`, 980, y + 45);
+
+    ctx.fillStyle = text;
+    ctx.font = '700 24px Unbounded';
+    ctx.fillText(fmtDurCompact(item.avgMs), 1230, y + 45);
+
+    ctx.fillStyle = muted;
+    ctx.font = '500 16px JetBrains Mono';
+    ctx.fillText(`макс ${fmtDur(item.maxMs)}`, 1368, y + 45);
+
+    y += 88;
+  });
+
+  return canvas;
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+}
+
+function renderInfographicPreview(state) {
+  const stage = document.getElementById('infographicPreviewStage');
+  const meta = document.getElementById('infographicMeta');
+  if (!stage) return;
+  if (!state) {
+    stage.innerHTML = '<div class="preview-empty">Оберіть період і натисніть «Згенерувати інфографіку», щоб побачити прев’ю та отримати експорт у PNG або JPG.</div>';
+    if (meta) meta.textContent = 'Поточні KPI будуть зібрані з відфільтрованих даних дашборда.';
+    return;
+  }
+  stage.innerHTML = `<img src="${state.pngUrl}" alt="KPI infographic preview">`;
+  if (meta) meta.textContent = `Період: з ${fmtShortDate(state.range.from)} по ${fmtShortDate(state.range.to)} • задач у вибірці: ${state.tasksCount}`;
+}
+
+function renderStatusInfographicPreview(state) {
+  const stage = document.getElementById('statusInfographicPreviewStage');
+  const meta = document.getElementById('statusInfographicMeta');
+  if (!stage) return;
+  if (!state) {
+    stage.innerHTML = '<div class="preview-empty">Інфографіка статусів покаже всі знайдені статуси та де задачі застрягають найдовше за вибраний період.</div>';
+    if (meta) meta.textContent = 'Для статусної інфографіки потрібен імпорт історії статусів.';
+    return;
+  }
+  stage.innerHTML = `<img src="${state.pngUrl}" alt="Status infographic preview">`;
+  if (meta) meta.textContent = `Статусів у вибірці: ${state.statusCount} • задач з історією: ${state.tasksCount}`;
+}
+
+function generateInfographic() {
+  const payload = computeInfographicMetrics();
+  if (!payload.analytics || !payload.tasks.length) {
+    infographicState = null;
+    const stage = document.getElementById('infographicPreviewStage');
+    const meta = document.getElementById('infographicMeta');
+    if (stage) stage.innerHTML = '<div class="preview-empty">Немає даних у вибраному періоді. Змініть діапазон дат або фільтри дашборда й спробуйте ще раз.</div>';
+    if (meta) meta.textContent = 'Інфографіку не згенеровано: вибірка порожня.';
+    return;
+  }
+
+  const canvas = buildInfographicCanvas(payload);
+  infographicState = {
+    canvas,
+    pngUrl: canvas.toDataURL('image/png'),
+    jpgUrl: canvas.toDataURL('image/jpeg', 0.92),
+    range: payload.range,
+    tasksCount: payload.tasks.length,
+  };
+  renderInfographicPreview(infographicState);
+}
+
+function generateStatusInfographic() {
+  const payload = computeStatusInfographicMetrics();
+  if (!payload.statuses.length) {
+    statusInfographicState = null;
+    renderStatusInfographicPreview(null);
+    const meta = document.getElementById('statusInfographicMeta');
+    if (meta) meta.textContent = 'Немає даних по статусах у вибраному періоді. Перевірте імпорт історії статусів.';
+    return;
+  }
+  const canvas = buildStatusInfographicCanvas(payload);
+  statusInfographicState = {
+    canvas,
+    pngUrl: canvas.toDataURL('image/png'),
+    jpgUrl: canvas.toDataURL('image/jpeg', 0.92),
+    range: payload.range,
+    tasksCount: payload.tasks.length,
+    statusCount: payload.statuses.length,
+  };
+  renderStatusInfographicPreview(statusInfographicState);
+}
+
+function downloadInfographic(format) {
+  if (!infographicState) {
+    generateInfographic();
+    if (!infographicState) return;
+  }
+  const link = document.createElement('a');
+  const from = infographicState.range.from ? toDateInputValue(infographicState.range.from) : 'from';
+  const to = infographicState.range.to ? toDateInputValue(infographicState.range.to) : 'to';
+  link.href = format === 'jpg' ? infographicState.jpgUrl : infographicState.pngUrl;
+  link.download = `sup-space-kpi-${from}-${to}.${format === 'jpg' ? 'jpg' : 'png'}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function downloadStatusInfographic(format) {
+  if (!statusInfographicState) {
+    generateStatusInfographic();
+    if (!statusInfographicState) return;
+  }
+  const link = document.createElement('a');
+  const from = statusInfographicState.range.from ? toDateInputValue(statusInfographicState.range.from) : 'from';
+  const to = statusInfographicState.range.to ? toDateInputValue(statusInfographicState.range.to) : 'to';
+  link.href = format === 'jpg' ? statusInfographicState.jpgUrl : statusInfographicState.pngUrl;
+  link.download = `sup-space-statuses-${from}-${to}.${format === 'jpg' ? 'jpg' : 'png'}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function syncInfographicDateInputs() {
+  const from = document.getElementById('infoDateFrom');
+  const to = document.getElementById('infoDateTo');
+  if (!from || !to) return;
+  if (!from.value) from.value = document.getElementById('dateFromFilter')?.value || '';
+  if (!to.value) to.value = document.getElementById('dateToFilter')?.value || '';
+}
+
+computeAnalytics = function computeAnalyticsRedesigned(arr) {
+  const total = arr.length;
+  if (!total) return null;
+
+  const countable = arr.filter(t => t.status !== 'Скасоване').length;
+  const completedCount = arr.filter(t => t.status === 'Завершене').length;
+  const activeCount = arr.filter(t => isActiveTask(t)).length;
+  const completedPct = countable ? Math.round(completedCount / countable * 100) : 0;
+
+  const closedArr = arr.filter(t => (t.status === 'Завершене' || t.status === 'Виконане') && t.dateCreated && (t.dateFinished || t.dateExec));
+  const slaResults = closedArr.map(t => {
+    const hours = workingHours(t.dateCreated, t.dateFinished || t.dateExec);
+    return { hours, ok: hours <= slaSettings.targetHours };
+  });
+  const slaOk = slaResults.filter(item => item.ok).length;
+  const slaPct = slaResults.length ? Math.round(slaOk / slaResults.length * 100) : null;
+  const avgSlaHours = slaResults.length ? avg(slaResults.map(item => item.hours)) : null;
+  const medSlaHours = slaResults.length ? median(slaResults.map(item => item.hours)) : null;
+
+  const avgTotal = avg(closedArr.map(t => diffMs(t.dateCreated, t.dateFinished || t.dateExec)).filter(v => v !== null));
+  const medTotal = median(closedArr.map(t => diffMs(t.dateCreated, t.dateFinished || t.dateExec)).filter(v => v !== null));
+  const ftrTimes = arr.filter(t => t.ftrAssigned && t.ftrAnswer).map(t => diffMs(t.ftrAssigned, t.ftrAnswer)).filter(v => v !== null);
+
+  return {
+    total,
+    countable,
+    completedCount,
+    activeCount,
+    completedPct,
+    slaOk,
+    slaPct,
+    slaTotal: slaResults.length,
+    avgSlaHours,
+    medSlaHours,
+    avgTotal,
+    medTotal,
+    avgFtr: avg(ftrTimes),
+    medFtr: median(ftrTimes),
+    ftrCount: ftrTimes.length,
+    ftrCoverage: arr.filter(t => t.ftrAssigned).length,
+  };
+};
+
+renderAnalyticsBar = function renderAnalyticsBarRedesigned(arr) {
+  const bar = document.getElementById('analyticsBar');
+  if (!bar) return;
+  const a = computeAnalytics(arr);
+  if (!a) {
+    bar.innerHTML = `
+      <div class="metric-card">
+        <div class="metric-label">Очікуємо дані</div>
+        <div class="metric-value">—</div>
+        <div class="metric-sub">Завантажте файл або відновіть збережене джерело</div>
+      </div>`;
+    return;
+  }
+
+  const cmpClass = a.completedPct >= 80 ? 'good' : a.completedPct >= 60 ? 'warn' : 'bad';
+  const slaClass = a.slaPct === null ? '' : a.slaPct >= 80 ? 'good' : a.slaPct >= 60 ? 'warn' : 'bad';
+  const items = [
+    {
+      key: '% завершених задач',
+      val: `${a.completedPct}%`,
+      cls: cmpClass,
+      sub: `${a.completedCount} завершено • ${a.activeCount} активних`
+    },
+    {
+      key: `SLA ≤ ${slaSettings.targetHours} год`,
+      val: a.slaPct !== null ? `${a.slaPct}%` : '—',
+      cls: slaClass,
+      sub: a.slaPct !== null ? `${a.slaOk} із ${a.slaTotal} вклались у ціль` : 'Немає завершених задач із датами'
+    },
+    {
+      key: 'Середній час виконання',
+      val: a.avgTotal ? fmtDur(a.avgTotal) : '—',
+      sub: a.medTotal ? `Медіана: ${fmtDur(a.medTotal)}` : 'Рахується від створення до фінального статусу'
+    },
+    {
+      key: 'Час на першу відповідь',
+      val: a.avgFtr ? fmtDur(a.avgFtr) : '—',
+      sub: a.medFtr ? `Медіана: ${fmtDur(a.medFtr)}` : (a.ftrCount ? `${a.ftrCoverage} задач з призначенням` : 'Немає даних по коментарях')
+    }
+  ];
+
+  bar.innerHTML = items.map(item => `
+    <div class="metric-card">
+      <div class="metric-label">${item.key}</div>
+      <div class="metric-value ${item.cls || ''}">${item.val}</div>
+      <div class="metric-sub">${item.sub}</div>
+    </div>
+  `).join('');
+};
+
+getFiltered = function getFilteredRedesigned() {
+  return filterTasksCollection(tasks, { state: getDashboardFilterState() });
+};
+
+renderStats = function renderStatsRedesigned(all) {
+  const total = all.length;
+  const done = all.filter(t => t.status === 'Завершене').length;
+  const active = all.filter(t => isActiveTask(t)).length;
+  const newTasks = all.filter(t => ['Нове', 'Відкладене'].includes(t.status)).length;
+  const cancel = all.filter(t => t.status === 'Скасоване').length;
+  const slaFail = all.filter(t => {
+    const info = getTaskSlaInfo(t);
+    return info && info.isClosed && info.isMet === false;
+  }).length;
+  const cards = [
+    { label: 'Всього у вибірці', value: total, color: 'var(--text)', filter: '' },
+    { label: 'Завершено', value: done, color: 'var(--done)', filter: 'Завершене' },
+    { label: 'Активні', value: active, color: 'var(--work)', filter: '__active__' },
+    { label: 'Нові / відкладені', value: newTasks, color: 'var(--new)', filter: 'Нове' },
+    { label: 'SLA fail', value: slaFail, color: 'var(--cancel)', filter: '__sla_fail__' },
+    { label: 'Скасовані', value: cancel, color: 'var(--cancel)', filter: 'Скасоване' },
+  ];
+
+  const grid = document.getElementById('statsGrid');
+  if (!grid) return;
+  grid.innerHTML = cards.map(card => `
+    <div class="stat-card ${((card.filter === '__sla_fail__' && document.getElementById('slaFilter')?.value === 'fail') || (activeStatusFilter === card.filter && card.filter)) ? 'active' : ''}" onclick="applyQuickFilter('${card.filter}')" style="color:${card.color}">
+      <div class="stat-val">${card.value}</div>
+      <div class="stat-lbl">${card.label}</div>
+    </div>
+  `).join('');
+
+  const headerCount = document.getElementById('headerCount');
+  if (headerCount) headerCount.textContent = `${total} задач`;
+};
+
+function buildPeopleLeaderboard(arr, field, sortBy) {
+  const grouped = new Map();
+  arr.forEach(task => {
+    const name = (task[field] || '').trim();
+    if (!name) return;
+    if (!grouped.has(name)) grouped.set(name, []);
+    grouped.get(name).push(task);
+  });
+
+  return [...grouped.entries()].map(([name, items]) => {
+    const completed = items.filter(t => t.status === 'Завершене').length;
+    const closed = items.filter(t => (t.status === 'Завершене' || t.status === 'Виконане') && t.dateCreated && (t.dateFinished || t.dateExec));
+    const durations = closed.map(t => diffMs(t.dateCreated, t.dateFinished || t.dateExec)).filter(v => v !== null);
+    const slaSet = closed.map(t => {
+      const info = getTaskSlaInfo(t);
+      return info ? info.isMet : null;
+    }).filter(v => v !== null);
+
+    return {
+      name,
+      completed,
+      avgTime: durations.length ? avg(durations) : null,
+      slaPct: slaSet.length ? Math.round(slaSet.filter(Boolean).length / slaSet.length * 100) : null,
+      total: items.length,
+    };
+  }).sort((a, b) => {
+    if (sortBy === 'avg') {
+      return (a.avgTime ?? Number.MAX_SAFE_INTEGER) - (b.avgTime ?? Number.MAX_SAFE_INTEGER) || b.completed - a.completed;
+    }
+    if (sortBy === 'done') {
+      return b.completed - a.completed || (b.slaPct ?? -1) - (a.slaPct ?? -1);
+    }
+    return (b.slaPct ?? -1) - (a.slaPct ?? -1) || b.completed - a.completed;
+  }).slice(0, 8);
+}
+
+function renderLeaderboard(elId, arr, field, sortBy) {
+  const container = document.getElementById(elId);
+  if (!container) return;
+  const rows = buildPeopleLeaderboard(arr, field, sortBy);
+  if (!rows.length) {
+    container.innerHTML = '<div class="leaderboard-empty">Немає достатньо даних для рейтингу</div>';
+    return;
+  }
+  container.innerHTML = `
+    <div class="leaderboard-row head">
+      <div>Топ</div>
+      <div>Імʼя</div>
+      <div>SLA</div>
+      <div>Сер. час</div>
+      <div>Завершено</div>
+    </div>
+    ${rows.map((row, index) => `
+      <div class="leaderboard-row">
+        <div class="leaderboard-rank">${index + 1}</div>
+        <div class="leaderboard-name" title="${row.name}">${row.name}</div>
+        <div class="leaderboard-meta">${row.slaPct !== null ? `${row.slaPct}%` : '—'}</div>
+        <div class="leaderboard-meta">${row.avgTime !== null ? fmtDur(row.avgTime) : '—'}</div>
+        <div class="leaderboard-meta">${row.completed}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderLeaderboards(arr) {
+  renderLeaderboard('executorLeaderboard', arr, 'executor', document.getElementById('executorRankingSort')?.value || 'sla');
+renderLeaderboard('authorLeaderboard', arr, 'author', document.getElementById('authorRankingSort')?.value || 'sla');
+}
+
+function buildStatusHistoryHtml(task) {
+  const history = taskStatusHistory.get(task.num) || [];
+  if (!history.length) return '';
+
+  const steps = history.map((item, index) => {
+    const next = history[index + 1] || null;
+    const duration = next ? fmtDur(diffMs(item.date, next.date)) : null;
+    const durationHours = next ? diffHours(item.date, next.date) : null;
+    return `
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-dot-wrap tl-dot-done">${index + 1}</div>
+          ${index < history.length - 1 ? '<div class="tl-line done-line"></div>' : ''}
+        </div>
+        <div class="tl-body">
+          <div class="tl-label">${item.status}</div>
+          <div class="tl-date">${fmtDate(item.date)}</div>
+          ${duration ? `<span class="tl-dur ${durClass(durationHours)}">⏱ ${duration}</span>` : '<div class="tl-na">Останній зафіксований статус</div>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="panel-card fade-in">
+      <div class="panel-title">Детальна історія статусів</div>
+      <div class="timeline">${steps}</div>
+    </div>
+  `;
+}
+
+getTaskSlaBadge = function getTaskSlaBadgeWithRuntime(task) {
+  const info = getTaskSlaInfo(task);
+  if (!info) return '';
+  if (!info.isClosed) {
+    const currentSla = fmtHoursMinutes(info.hours * 60);
+    return `
+      <span class="badge badge-sla-pending">SLA в роботі</span>
+      <span class="badge badge-sla-time">${currentSla || '—:—'}</span>
+    `;
+  }
+  return info.isMet
+    ? '<span class="badge badge-sla-ok">SLA OK</span>'
+    : '<span class="badge badge-sla-bad">SLA FAIL</span>';
+};
+
+const originalRenderRoadmap = renderRoadmap;
+renderRoadmap = function renderRoadmapRedesigned(task) {
+  if (!task) {
+    const panel = document.getElementById('rightPanel');
+    if (panel) {
+      panel.innerHTML = `
+        <div class="roadmap-empty">
+          <div class="roadmap-empty-icon">◌</div>
+          <div class="roadmap-empty-text">Оберіть задачу, щоб подивитися хронологію та деталі</div>
+        </div>
+      `;
+    }
+    return;
+  }
+  originalRenderRoadmap(task);
+  const panel = document.getElementById('rightPanel');
+  if (!panel) return;
+  const historyHtml = buildStatusHistoryHtml(task);
+  if (historyHtml) panel.insertAdjacentHTML('beforeend', historyHtml);
+};
+
+function buildStatusHistoryHtml(task) {
+  const history = taskStatusHistory.get(task.num) || [];
+  if (!history.length) return '';
+
+  const durations = history.map((item, index) => {
+    const next = history[index + 1] || null;
+    return next ? (diffMs(item.date, next.date) || 0) : 0;
+  });
+  const longestMs = Math.max(...durations, 0);
+  const longestIndex = durations.findIndex(ms => ms === longestMs && ms > 0);
+  const lastStatus = history[history.length - 1]?.status || '—';
+
+  const steps = history.map((item, index) => {
+    const next = history[index + 1] || null;
+    const duration = next ? fmtDur(diffMs(item.date, next.date)) : null;
+    const durationHours = next ? diffHours(item.date, next.date) : null;
+    const isStuck = index === longestIndex && !!duration;
+    return `
+      <div class="tl-step ${isStuck ? 'stuck' : ''}">
+        <div class="tl-left">
+          <div class="tl-dot-wrap tl-dot-done">${index + 1}</div>
+          ${index < history.length - 1 ? '<div class="tl-line done-line"></div>' : ''}
+        </div>
+        <div class="tl-body">
+          <div class="tl-label">${item.status}</div>
+          <div class="tl-date">${fmtDate(item.date)}</div>
+          ${duration ? `<span class="tl-dur ${durClass(durationHours)}">${isStuck ? 'Застрягло' : 'Етап'} · ${duration}</span>` : '<div class="tl-na">Останній зафіксований статус</div>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="roadmap-history">
+      <div class="history-summary">
+        <span class="history-chip"><strong>${history.length}</strong> переходів</span>
+        <span class="history-chip">Останній статус: <strong>${lastStatus}</strong></span>
+        ${longestIndex >= 0 ? `<span class="history-chip">Найдовше: <strong>${history[longestIndex].status}</strong> · ${fmtDur(longestMs)}</span>` : ''}
+      </div>
+      <div class="history-title">Історія статусів по задачі</div>
+      <div class="timeline">${steps}</div>
+    </div>
+  `;
+}
+
+renderRoadmap = function renderRoadmapStatusIntegrated(task) {
+  if (!task) {
+    const panel = document.getElementById('rightPanel');
+    if (panel) {
+      panel.innerHTML = `
+        <div class="roadmap-empty">
+          <div class="roadmap-empty-icon">◌</div>
+          <div class="roadmap-empty-text">Оберіть задачу, щоб подивитися хронологію та деталі</div>
+        </div>
+      `;
+    }
+    return;
+  }
+  originalRenderRoadmap(task);
+  const panel = document.getElementById('rightPanel');
+  if (!panel) return;
+  const historyHtml = buildStatusHistoryHtml(task);
+  if (!historyHtml) return;
+  const roadmapCard = panel.querySelectorAll('.panel-card.fade-in')[1];
+  if (roadmapCard) {
+    roadmapCard.insertAdjacentHTML('beforeend', historyHtml);
+  } else {
+    panel.insertAdjacentHTML('beforeend', `<div class="panel-card fade-in">${historyHtml}</div>`);
+  }
+};
+
+const originalApplyData = applyData;
+applyData = function patchedApplyData(text, source, options = {}) {
+  const ok = originalApplyData(text, source);
+  if (!ok) return false;
+  infographicState = null;
+  statusInfographicState = null;
+  taskStatusHistory = new Map();
+  persistStatusHistory();
+  const sourceId = options.sourceId || makeSourceId();
+  const sourceName = source || DEFAULT_SOURCE_NAME;
+  tasks.forEach(task => {
+    task.sourceId = sourceId;
+    task.sourceName = sourceName;
+  });
+  if (options.remember !== false) {
+    importSources = [{
+      id: sourceId,
+      name: sourceName,
+      text,
+      addedAt: new Date().toISOString(),
+    }];
+    persistImports();
+  }
+  rebuildSourceFilterOptions();
+  renderStoredSources();
+  syncDateFilterRange();
+  updateHeroMeta();
+  renderAll();
+  return true;
+};
+
+clearData = function clearDataRedesigned() {
+  tasks.length = 0;
+  selectedNum = null;
+  currentPage = 1;
+  activeStatusFilter = '';
+  importSources = [];
+  infographicState = null;
+  statusInfographicState = null;
+  taskStatusHistory = new Map();
+  persistImports();
+  persistStatusHistory();
+  ['searchInput','statusFilter','groupFilter','executorFilter','authorFilter','sourceFilter','slaFilter','dateFromFilter','dateToFilter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'INPUT') el.value = '';
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+  });
+  const headerCount = document.getElementById('headerCount');
+  const headerDateRange = document.getElementById('headerDateRange');
+  if (headerCount) headerCount.textContent = '—';
+  if (headerDateRange) headerDateRange.textContent = '—';
+  renderRoadmap(null);
+  rebuildFilterOptions();
+  rebuildSourceFilterOptions();
+  renderStoredSources();
+  updateHeroMeta();
+  renderAll();
+  closeConfirm();
+};
+
+renderAll = function renderAllRedesigned() {
+  const filtered = getFiltered();
+  renderStats(filtered);
+  renderAnalyticsBar(filtered);
+  renderList(filtered);
+  renderLeaderboards(filtered);
+  rebuildSourceFilterOptions();
+  renderStoredSources();
+  updateHeroMeta();
+  syncInfographicDateInputs();
+  if (!infographicState) renderInfographicPreview(null);
+  if (!statusInfographicState) renderStatusInfographicPreview(null);
+};
+
+renderAnalyticsBar = function renderAnalyticsBarFinal(arr) {
+  const bar = document.getElementById('analyticsBar');
+  if (!bar) return;
+  const a = computeAnalytics(arr);
+  if (!a) {
+    bar.innerHTML = `
+      <div class="metric-card">
+        <div class="metric-label">Очікуємо дані</div>
+        <div class="metric-value">—</div>
+        <div class="metric-sub">Завантажте файл або відновіть збережене джерело</div>
+      </div>`;
+    return;
+  }
+
+  const cmpClass = a.completedPct >= 80 ? 'good' : a.completedPct >= 60 ? 'warn' : 'bad';
+  const slaClass = a.slaPct === null ? '' : a.slaPct >= 80 ? 'good' : a.slaPct >= 60 ? 'warn' : 'bad';
+  const items = [
+    {
+      key: '% завершених задач',
+      val: `${a.completedPct}%`,
+      cls: cmpClass,
+      sub: `${a.completedCount} завершено • ${a.activeCount} активних`
+    },
+    {
+      key: `SLA ≤ ${slaSettings.targetHours} год`,
+      val: a.slaPct !== null ? `${a.slaPct}%` : '—',
+      cls: slaClass,
+      sub: a.slaPct !== null ? `${a.slaOk} із ${a.slaTotal} вклались у ціль` : 'Немає завершених задач із датами'
+    },
+    {
+      key: 'Середній час виконання',
+      val: a.avgTotal !== null ? fmtDur(a.avgTotal) : '—',
+      sub: a.medTotal ? `Медіана: ${fmtDur(a.medTotal)}` : 'Рахується від створення до фінального статусу'
+    },
+    {
+      key: 'Час на першу відповідь',
+      val: a.avgFtr !== null ? fmtDur(a.avgFtr) : '—',
+      sub: a.medFtr ? `Медіана: ${fmtDur(a.medFtr)}` : (a.ftrCount ? `${a.ftrCoverage} задач з призначенням` : 'Немає даних по коментарях')
+    }
+  ];
+
+  bar.innerHTML = items.map(item => `
+    <div class="metric-card">
+      <div class="metric-label">${item.key}</div>
+      <div class="metric-value ${item.cls || ''}">${item.val}</div>
+      <div class="metric-sub">${item.sub}</div>
+    </div>
+  `).join('');
+};
+
+function getTaskStatusSpans(task) {
+  if (!task || !task.num) return [];
+  const history = (taskStatusHistory.get(task.num) || []).filter(item => item && item.date && item.status);
+  if (!history.length) return [];
+
+  return history.map((item, index) => {
+    const start = index === 0 ? task.dateCreated : history[index - 1]?.date || null;
+    const end = item.date || null;
+    const durationMs = diffMs(start, end);
+    return {
+      status: item.status,
+      start,
+      end,
+      durationMs,
+      source: item.source || '',
+      isFirst: index === 0
+    };
+  }).filter(span => span.start && span.end && span.durationMs !== null);
+}
+
+function getOverlapMs(start, end, rangeFrom, rangeTo) {
+  if (!start || !end) return null;
+  let clippedStart = start;
+  let clippedEnd = end;
+  if (rangeFrom && clippedEnd <= rangeFrom) return null;
+  if (rangeTo && clippedStart >= rangeTo) return null;
+  if (rangeFrom && clippedStart < rangeFrom) clippedStart = rangeFrom;
+  if (rangeTo && clippedEnd > rangeTo) clippedEnd = rangeTo;
+  return diffMs(clippedStart, clippedEnd);
+}
+
+buildStatusHistoryHtml = function buildStatusHistoryHtmlFixed(task) {
+  const spans = getTaskStatusSpans(task);
+  if (!spans.length) return '';
+
+  const durations = spans.map(item => item.durationMs || 0);
+  const longestMs = Math.max(...durations, 0);
+  const longestIndex = durations.findIndex(ms => ms === longestMs && ms > 0);
+  const lastStatus = spans[spans.length - 1]?.status || '—';
+
+  const steps = spans.map((item, index) => {
+    const isStuck = index === longestIndex && !!item.durationMs;
+    const durationHours = item.durationMs === null ? null : item.durationMs / 3600000;
+    return `
+      <div class="tl-step ${isStuck ? 'stuck' : ''}">
+        <div class="tl-left">
+          <div class="tl-dot-wrap tl-dot-done">${index + 1}</div>
+          ${index < spans.length - 1 ? '<div class="tl-line done-line"></div>' : ''}
+        </div>
+        <div class="tl-body">
+          <div class="tl-label">${item.status}</div>
+          <div class="tl-date">${fmtDate(item.start)} → ${fmtDate(item.end)}</div>
+          <span class="tl-dur ${durClass(durationHours)}">${isStuck ? 'Застрягло' : 'Етап'} · ${fmtDur(item.durationMs)}</span>
+          ${item.isFirst ? '<div class="tl-na">Початок етапу взято з дати створення задачі</div>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="roadmap-history">
+      <div class="history-summary">
+        <span class="history-chip"><strong>${spans.length}</strong> переходів</span>
+        <span class="history-chip">Останній статус: <strong>${lastStatus}</strong></span>
+        ${longestIndex >= 0 ? `<span class="history-chip">Найдовше: <strong>${spans[longestIndex].status}</strong> · ${fmtDur(longestMs)}</span>` : ''}
+      </div>
+      <div class="history-title">Історія статусів по задачі</div>
+      <div class="timeline">${steps}</div>
+    </div>
+  `;
+};
+
+computeStatusInfographicMetrics = function computeStatusInfographicMetricsFixed() {
+  const base = computeInfographicMetrics();
+  const stats = new Map();
+
+  base.tasks.forEach(task => {
+    const spans = getTaskStatusSpans(task);
+    spans.forEach(item => {
+      const ms = getOverlapMs(item.start, item.end, base.range.from, base.range.to);
+      if (ms === null) return;
+      if (!stats.has(item.status)) {
+        stats.set(item.status, { status: item.status, totalMs: 0, count: 0, maxMs: 0 });
+      }
+      const entry = stats.get(item.status);
+      entry.totalMs += ms;
+      entry.count += 1;
+      entry.maxMs = Math.max(entry.maxMs, ms);
+    });
+  });
+
+  const statuses = [...stats.values()].map(item => ({
+    ...item,
+    avgMs: item.count ? item.totalMs / item.count : 0,
+  })).sort((a, b) => b.avgMs - a.avgMs || b.totalMs - a.totalMs);
+
+  return {
+    ...base,
+    statuses,
+    critical: statuses[0] || null,
+  };
+};
+
+syncDateFilterRange = function syncDateFilterRangeRedesigned() {
+  const allDates = tasks.map(task => task.dateCreated).filter(Boolean).sort((a, b) => a - b);
+  const from = document.getElementById('dateFromFilter');
+  const to = document.getElementById('dateToFilter');
+  if (!from || !to || !allDates.length) return;
+  if (!from.value) from.value = toDateInputValue(allDates[0]);
+  if (!to.value) to.value = toDateInputValue(allDates[allDates.length - 1]);
+};
+
+buildDashboardLayout();
+ensureHeaderVersion();
+renderStoredSources();
+rebuildSourceFilterOptions();
+updateHeroMeta();
+syncInfographicDateInputs();
+renderInfographicPreview(null);
+renderStatusInfographicPreview(null);
+restoreStoredStatusHistory();
+if (!restoreStoredImports(true) && tasks.length && !importSources.length) {
+  applyData(RAW_BUILTIN, DEFAULT_SOURCE_NAME, { remember: false, sourceId: 'builtin_source' });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "НАЗВА",
+  "description": "",
+  "status": "active",
+  "blocks": [
+    {
+      "name": "Привітання",
+      "criteria": [
+        {
+          "name": "Новий критерій",
+          "description": "",
+          "weight": 10
+        },
+        {
+          "name": "Новий критерій",
+          "description": "",
+          "weight": 90
+        }
+      ]
+    }
+  ]
+}
