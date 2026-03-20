@@ -3006,7 +3006,7 @@ function computeFcrStats(arr) {
     uniqueContacts,
     repeatContacts,
     firstContactResolved,
-    pct: countable.length ? Math.round(firstContactResolved / countable.length * 100) : null,
+    pct: countable.length ? Math.round(uniqueContacts / countable.length * 100) : null,
   };
 }
 
@@ -3181,7 +3181,7 @@ renderAnalyticsBar = function renderAnalyticsBarV105(arr) {
       val: a.fcrPct !== null ? `${a.fcrPct}%` : '—',
       cls: fcrClass,
       sub: a.fcrTotalContacts
-        ? `${a.fcrFirstResolved} з першого звернення • ${a.fcrUniqueContacts} унікальних, ${a.fcrRepeatContacts} повторів`
+        ? `${a.fcrUniqueContacts} унікальних із ${a.fcrTotalContacts} звернень • ${a.fcrRepeatContacts} повторів`
         : 'Немає звернень із постановником у вибірці'
     },
     {
@@ -3203,6 +3203,101 @@ renderAnalyticsBar = function renderAnalyticsBarV105(arr) {
       <div class="metric-sub">${item.sub}</div>
     </div>
   `).join('');
+};
+
+buildInfographicCanvas = function buildInfographicCanvasV105(payload) {
+  const { analytics, range } = payload;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1600;
+  canvas.height = 1020;
+  const ctx = canvas.getContext('2d');
+  const accent = '#ff9b38';
+  const accentSoft = '#ffbc73';
+  const green = '#22c986';
+  const blue = '#70a2ff';
+  const rose = '#ff6b91';
+  const text = '#f5f2ff';
+  const muted = '#a09ab8';
+  const border = '#2c273a';
+
+  const bg = ctx.createLinearGradient(0, 0, 1600, 1020);
+  bg.addColorStop(0, '#0b0911');
+  bg.addColorStop(1, '#14111d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  for (let x = 0; x < canvas.width; x += 56) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 56) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+
+  const glow = ctx.createRadialGradient(1240, 120, 0, 1240, 120, 320);
+  glow.addColorStop(0, 'rgba(255,155,56,0.24)');
+  glow.addColorStop(1, 'rgba(255,155,56,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = muted;
+  ctx.font = '600 22px JetBrains Mono';
+  ctx.fillText('SUP SPACE // KPI SNAPSHOT', 92, 84);
+
+  ctx.fillStyle = text;
+  ctx.font = '700 68px Unbounded';
+  ctx.fillText('Показники підтримки', 92, 170);
+
+  ctx.fillStyle = muted;
+  ctx.font = '500 28px JetBrains Mono';
+  ctx.fillText(`з ${fmtShortDate(range.from)} по ${fmtShortDate(range.to)}`, 96, 222);
+
+  const cards = [
+    { x: 92, y: 286, w: 676, h: 216, value: analytics?.slaPct !== null ? `${analytics.slaPct}%` : '—', label: 'SLA виконано', sub: analytics?.slaTotal ? `${analytics.slaOk} із ${analytics.slaTotal} задач` : 'Недостатньо даних', color: accent, valueFont: '700 84px Unbounded' },
+    { x: 832, y: 286, w: 676, h: 216, value: analytics ? `${analytics.completedPct}%` : '—', label: 'Closed Tickets', sub: analytics ? `${analytics.completedCount} завершено` : 'Недостатньо даних', color: green, valueFont: '700 84px Unbounded' },
+    { x: 92, y: 542, w: 432, h: 220, value: analytics?.fcrPct !== null ? `${analytics.fcrPct}%` : '—', label: 'FCR', sub: analytics?.fcrTotalContacts ? `${analytics.fcrUniqueContacts} унікальних із ${analytics.fcrTotalContacts}` : 'Немає звернень', color: rose, valueFont: '700 72px Unbounded' },
+    { x: 584, y: 542, w: 432, h: 220, value: analytics ? fmtDurCompact(analytics.avgFtr) : '—', label: 'Середній час відповіді', sub: '', color: accentSoft, valueFont: '700 60px Unbounded' },
+    { x: 1076, y: 542, w: 432, h: 220, value: analytics && analytics.avgSlaHours !== null ? fmtDurCompact(analytics.avgSlaHours * 3600000) : '—', label: 'Середній час виконання', sub: '', color: blue, valueFont: '700 60px Unbounded' },
+  ];
+
+  cards.forEach(card => {
+    ctx.fillStyle = 'rgba(17,17,24,0.9)';
+    roundRect(ctx, card.x, card.y, card.w, card.h, 28);
+    ctx.fill();
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 2;
+    roundRect(ctx, card.x, card.y, card.w, card.h, 28);
+    ctx.stroke();
+
+    ctx.fillStyle = card.color;
+    ctx.fillRect(card.x + 26, card.y + card.h - 10, card.w - 52, 4);
+
+    ctx.fillStyle = text;
+    ctx.font = card.valueFont;
+    ctx.fillText(card.value, card.x + 34, card.y + 102);
+
+    ctx.fillStyle = text;
+    ctx.font = '600 24px JetBrains Mono';
+    ctx.fillText(card.label, card.x + 36, card.y + 146);
+
+    if (card.sub) {
+      ctx.fillStyle = muted;
+      ctx.font = '500 20px JetBrains Mono';
+      ctx.fillText(card.sub, card.x + 36, card.y + card.h - 34);
+    }
+  });
+
+  ctx.fillStyle = muted;
+  ctx.font = '500 20px JetBrains Mono';
+  ctx.fillText('FCR = унікальні звернення / загальна кількість звернень у вибірці', 92, 900);
+
+  return canvas;
 };
 
 syncDateFilterRange = function syncDateFilterRangeRedesigned() {
