@@ -652,7 +652,7 @@ const PAGE_SIZE = 25;
 let infographicState = null;
 let statusInfographicState = null;
 let taskStatusHistory = new Map();
-const DASHBOARD_VERSION = 'v1.0.4';
+const DASHBOARD_VERSION = 'v1.0.5';
 
 function isActiveTask(task) {
   if (!task) return false;
@@ -2951,11 +2951,13 @@ function getTaskStatusSpans(task) {
   return history.map((item, index) => {
     const start = index === 0 ? task.dateCreated : history[index - 1]?.date || null;
     const end = item.date || null;
-    const durationMs = diffMs(start, end);
+    const durationMinutes = (!start || !end || end <= start) ? null : workingMinutes(start, end);
+    const durationMs = durationMinutes === null ? null : durationMinutes * 60000;
     return {
       status: item.status,
       start,
       end,
+      durationMinutes,
       durationMs,
       source: item.source || '',
       isFirst: index === 0
@@ -2963,7 +2965,52 @@ function getTaskStatusSpans(task) {
   }).filter(span => span.start && span.end && span.durationMs !== null);
 }
 
-function getOverlapMs(start, end, rangeFrom, rangeTo) {
+function computeFcrStats(arr) {
+  const countable = arr.filter(task => task.status !== 'Скасоване' && task.author).slice();
+  if (!countable.length) {
+    return {
+      totalContacts: 0,
+      uniqueContacts: 0,
+      repeatContacts: 0,
+      firstContactResolved: 0,
+      pct: null,
+    };
+  }
+
+  const byAuthor = new Map();
+  countable
+    .sort((a, b) => (a.dateCreated || 0) - (b.dateCreated || 0))
+    .forEach(task => {
+      const author = (task.author || '').trim();
+      if (!author) return;
+      if (!byAuthor.has(author)) byAuthor.set(author, []);
+      byAuthor.get(author).push(task);
+    });
+
+  let uniqueContacts = 0;
+  let repeatContacts = 0;
+  let firstContactResolved = 0;
+
+  [...byAuthor.values()].forEach(items => {
+    if (!items.length) return;
+    uniqueContacts += 1;
+    repeatContacts += Math.max(0, items.length - 1);
+    const firstTask = items[0];
+    const hasRepeats = items.length > 1;
+    const isResolved = ['Завершене', 'Виконане'].includes(firstTask.status);
+    if (!hasRepeats && isResolved) firstContactResolved += 1;
+  });
+
+  return {
+    totalContacts: countable.length,
+    uniqueContacts,
+    repeatContacts,
+    firstContactResolved,
+    pct: countable.length ? Math.round(firstContactResolved / countable.length * 100) : null,
+  };
+}
+
+function getWorkingOverlapMs(start, end, rangeFrom, rangeTo) {
   if (!start || !end) return null;
   let clippedStart = start;
   let clippedEnd = end;
@@ -2971,7 +3018,8 @@ function getOverlapMs(start, end, rangeFrom, rangeTo) {
   if (rangeTo && clippedStart >= rangeTo) return null;
   if (rangeFrom && clippedStart < rangeFrom) clippedStart = rangeFrom;
   if (rangeTo && clippedEnd > rangeTo) clippedEnd = rangeTo;
-  return diffMs(clippedStart, clippedEnd);
+  const minutes = workingMinutes(clippedStart, clippedEnd);
+  return minutes * 60000;
 }
 
 buildStatusHistoryHtml = function buildStatusHistoryHtmlFixed(task) {
@@ -2995,7 +3043,7 @@ buildStatusHistoryHtml = function buildStatusHistoryHtmlFixed(task) {
         <div class="tl-body">
           <div class="tl-label">${item.status}</div>
           <div class="tl-date">${fmtDate(item.start)} → ${fmtDate(item.end)}</div>
-          <span class="tl-dur ${durClass(durationHours)}">${isStuck ? 'Застрягло' : 'Етап'} · ${fmtDur(item.durationMs)}</span>
+          <span class="tl-dur ${durClass(durationHours)}">${isStuck ? 'Застрягло' : 'Етап'} · ${fmtDur(item.durationMs)} роб. часу</span>
           ${item.isFirst ? '<div class="tl-na">Початок етапу взято з дати створення задачі</div>' : ''}
         </div>
       </div>
@@ -3022,8 +3070,8 @@ computeStatusInfographicMetrics = function computeStatusInfographicMetricsFixed(
   base.tasks.forEach(task => {
     const spans = getTaskStatusSpans(task);
     spans.forEach(item => {
-      const ms = getOverlapMs(item.start, item.end, base.range.from, base.range.to);
-      if (ms === null) return;
+      const ms = getWorkingOverlapMs(item.start, item.end, base.range.from, base.range.to);
+      if (ms === null || ms <= 0) return;
       if (!stats.has(item.status)) {
         stats.set(item.status, { status: item.status, totalMs: 0, count: 0, maxMs: 0 });
       }
@@ -3044,6 +3092,117 @@ computeStatusInfographicMetrics = function computeStatusInfographicMetricsFixed(
     statuses,
     critical: statuses[0] || null,
   };
+};
+
+computeAnalytics = function computeAnalyticsV105(arr) {
+  const total = arr.length;
+  if (!total) return null;
+
+  const countable = arr.filter(t => t.status !== 'Скасоване').length;
+  const completedCount = arr.filter(t => t.status === 'Завершене').length;
+  const activeCount = arr.filter(t => isActiveTask(t)).length;
+  const completedPct = countable ? Math.round(completedCount / countable * 100) : 0;
+
+  const closedArr = arr.filter(t => (t.status === 'Завершене' || t.status === 'Виконане') && t.dateCreated && (t.dateFinished || t.dateExec));
+  const slaResults = closedArr.map(t => {
+    const hours = workingHours(t.dateCreated, t.dateFinished || t.dateExec);
+    return { hours, ok: hours <= slaSettings.targetHours };
+  });
+  const slaOk = slaResults.filter(item => item.ok).length;
+  const slaPct = slaResults.length ? Math.round(slaOk / slaResults.length * 100) : null;
+  const avgSlaHours = slaResults.length ? avg(slaResults.map(item => item.hours)) : null;
+  const medSlaHours = slaResults.length ? median(slaResults.map(item => item.hours)) : null;
+
+  const avgTotal = avg(closedArr.map(t => diffMs(t.dateCreated, t.dateFinished || t.dateExec)).filter(v => v !== null));
+  const medTotal = median(closedArr.map(t => diffMs(t.dateCreated, t.dateFinished || t.dateExec)).filter(v => v !== null));
+  const ftrTimes = arr.filter(t => t.ftrAssigned && t.ftrAnswer).map(t => diffMs(t.ftrAssigned, t.ftrAnswer)).filter(v => v !== null);
+  const avgFtr = avg(ftrTimes);
+  const medFtr = median(ftrTimes);
+  const ftrCoverage = arr.filter(t => t.ftrAssigned).length;
+  const fcr = computeFcrStats(arr);
+
+  return {
+    total,
+    countable,
+    completedCount,
+    activeCount,
+    completedPct,
+    slaOk,
+    slaPct,
+    slaTotal: slaResults.length,
+    avgSlaHours,
+    medSlaHours,
+    avgTotal,
+    medTotal,
+    avgFtr,
+    medFtr,
+    ftrCoverage,
+    ftrCount: ftrTimes.length,
+    fcrPct: fcr.pct,
+    fcrTotalContacts: fcr.totalContacts,
+    fcrUniqueContacts: fcr.uniqueContacts,
+    fcrRepeatContacts: fcr.repeatContacts,
+    fcrFirstResolved: fcr.firstContactResolved,
+  };
+};
+
+renderAnalyticsBar = function renderAnalyticsBarV105(arr) {
+  const bar = document.getElementById('analyticsBar');
+  if (!bar) return;
+  const a = computeAnalytics(arr);
+  if (!a) {
+    bar.innerHTML = `
+      <div class="metric-card">
+        <div class="metric-label">Очікуємо дані</div>
+        <div class="metric-value">—</div>
+        <div class="metric-sub">Завантажте файл або відновіть збережене джерело</div>
+      </div>`;
+    return;
+  }
+
+  const cmpClass = a.completedPct >= 80 ? 'good' : a.completedPct >= 60 ? 'warn' : 'bad';
+  const slaClass = a.slaPct === null ? '' : a.slaPct >= 80 ? 'good' : a.slaPct >= 60 ? 'warn' : 'bad';
+  const fcrClass = a.fcrPct === null ? '' : a.fcrPct >= 70 ? 'good' : a.fcrPct >= 50 ? 'warn' : 'bad';
+  const items = [
+    {
+      key: '% завершених задач',
+      val: `${a.completedPct}%`,
+      cls: cmpClass,
+      sub: `${a.completedCount} завершено • ${a.activeCount} активних`
+    },
+    {
+      key: `SLA ≤ ${slaSettings.targetHours} год`,
+      val: a.slaPct !== null ? `${a.slaPct}%` : '—',
+      cls: slaClass,
+      sub: a.slaPct !== null ? `${a.slaOk} із ${a.slaTotal} вклались у ціль` : 'Немає завершених задач із датами'
+    },
+    {
+      key: 'FCR',
+      val: a.fcrPct !== null ? `${a.fcrPct}%` : '—',
+      cls: fcrClass,
+      sub: a.fcrTotalContacts
+        ? `${a.fcrFirstResolved} з першого звернення • ${a.fcrUniqueContacts} унікальних, ${a.fcrRepeatContacts} повторів`
+        : 'Немає звернень із постановником у вибірці'
+    },
+    {
+      key: 'Середній час виконання',
+      val: a.avgTotal !== null ? fmtDur(a.avgTotal) : '—',
+      sub: a.medTotal ? `Медіана: ${fmtDur(a.medTotal)}` : 'Рахується від створення до фінального статусу'
+    },
+    {
+      key: 'Час на першу відповідь',
+      val: a.avgFtr !== null ? fmtDur(a.avgFtr) : '—',
+      sub: a.medFtr ? `Медіана: ${fmtDur(a.medFtr)}` : (a.ftrCount ? `${a.ftrCoverage} задач з призначенням` : 'Немає даних по коментарях')
+    }
+  ];
+
+  bar.innerHTML = items.map(item => `
+    <div class="metric-card">
+      <div class="metric-label">${item.key}</div>
+      <div class="metric-value ${item.cls || ''}">${item.val}</div>
+      <div class="metric-sub">${item.sub}</div>
+    </div>
+  `).join('');
 };
 
 syncDateFilterRange = function syncDateFilterRangeRedesigned() {
