@@ -375,6 +375,10 @@ app.get('/suphub', (req, res) => {
   res.sendFile(path.join(__dirname, 'suphub_dashboard.html'));
 });
 
+app.get('/forecast', (req, res) => {
+  res.sendFile(path.join(__dirname, 'forecast_dashboard.html'));
+});
+
 app.get('/api/dashboard', (req, res) => {
   res.json(getDashboardPayload());
 });
