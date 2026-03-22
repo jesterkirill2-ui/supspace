@@ -20,10 +20,13 @@ const defaultSettings = {
   botToken: '',
   publicWebhookUrl: '',
   webhookPath: '/telegram/webhook',
+  assignmentStrategy: 'load-balanced-priority',
   lastWebhookSetAt: '',
   lastError: '',
   botInfo: null
 };
+const CLOSING_MESSAGE_DAY = 'Якщо будуть питання, звертайтесь до наших офіційних каналів комунікації! Дякуємо за звернення, та гарного дня :)';
+const CLOSING_MESSAGE_EVENING = 'Якщо будуть питання, звертайтесь до наших офіційних каналів комунікації! Дякуємо за звернення, та гарного вечора :)';
 
 function ensureStorage() {
   if (!fs.existsSync(STORAGE_DIR)) {
@@ -139,6 +142,111 @@ function getSpecialistUsers() {
     .map(sanitizeUser);
 }
 
+function getOnlineSpecialists(userState = getUserState()) {
+  return userState.users
+    .filter((user) => user.role === 'specialist' && normalizeAvailabilityStatus(user.availabilityStatus) === 'online')
+    .map(sanitizeUser);
+}
+
+function getOnlineAssignableUsers(userState = getUserState()) {
+  return userState.users
+    .filter((user) =>
+      (user.role === 'specialist' || user.role === 'administrator') &&
+      normalizeAvailabilityStatus(user.availabilityStatus) === 'online'
+    )
+    .map(sanitizeUser);
+}
+
+function getActiveChats(state = getChatState()) {
+  return state.chats.filter((chat) => (chat.threadStatus || 'active') !== 'completed');
+}
+
+function countActiveChatsForUser(state, userId) {
+  return getActiveChats(state).filter((chat) => chat.assignedUserId === userId).length;
+}
+
+function getLatestHandledSpecialistId(state, telegramChatId, excludedChatId = '') {
+  return state.chats
+    .filter((chat) =>
+      String(chat.telegramChatId || chat.id) === String(telegramChatId) &&
+      chat.id !== excludedChatId &&
+      chat.assignedUserId
+    )
+    .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))[0]?.assignedUserId || '';
+}
+
+function pickBalancedAssignee(state, telegramChatId, excludedChatId = '') {
+  const candidates = getOnlineSpecialists();
+  if (!candidates.length) {
+    return null;
+  }
+
+  const candidateLoads = candidates.map((user) => ({
+    user,
+    load: countActiveChatsForUser(state, user.id)
+  }));
+  const minLoad = Math.min(...candidateLoads.map((entry) => entry.load));
+  const lowestLoadCandidates = candidateLoads.filter((entry) => entry.load === minLoad);
+  const preferredUserId = getLatestHandledSpecialistId(state, telegramChatId, excludedChatId);
+  const preferredEntry = lowestLoadCandidates.find((entry) => entry.user.id === preferredUserId);
+
+  if (preferredEntry) {
+    return preferredEntry.user;
+  }
+
+  const randomIndex = Math.floor(Math.random() * lowestLoadCandidates.length);
+  return lowestLoadCandidates[randomIndex].user;
+}
+
+function assignChatRecord(chat, user) {
+  chat.assignedUserId = user?.id || '';
+  chat.assignedUserName = user?.fullName || '';
+}
+
+function applyAutomaticAssignment(state, chat) {
+  const settings = getSettings();
+  if ((settings.assignmentStrategy || defaultSettings.assignmentStrategy) !== 'load-balanced-priority') {
+    return;
+  }
+
+  const assignee = pickBalancedAssignee(state, chat.telegramChatId || chat.id, chat.id);
+  assignChatRecord(chat, assignee);
+}
+
+function rebalanceChatsForUnavailableUser(unavailableUserId) {
+  const state = getChatState();
+  const chatsToReassign = getActiveChats(state).filter((chat) => chat.assignedUserId === unavailableUserId);
+
+  chatsToReassign.forEach((chat) => {
+    const assignee = pickBalancedAssignee(state, chat.telegramChatId || chat.id, chat.id);
+    assignChatRecord(chat, assignee);
+  });
+
+  saveChatState(state);
+  return state;
+}
+
+function assignUnassignedChatsToOnlineSpecialists() {
+  const state = getChatState();
+  const unassignedChats = getActiveChats(state).filter((chat) => !chat.assignedUserId);
+
+  unassignedChats.forEach((chat) => {
+    const assignee = pickBalancedAssignee(state, chat.telegramChatId || chat.id, chat.id);
+    assignChatRecord(chat, assignee);
+  });
+
+  saveChatState(state);
+  return state;
+}
+
+function getOnlineSpecialistWorkload() {
+  const state = getChatState();
+  return getOnlineSpecialists().map((user) => ({
+    ...user,
+    activeChats: countActiveChatsForUser(state, user.id)
+  }));
+}
+
 function parseCookies(cookieHeader = '') {
   return cookieHeader
     .split(';')
@@ -201,12 +309,41 @@ function saveSettings(nextSettings) {
 
 function getChatState() {
   const state = readJson(CHATS_PATH, { chats: [] });
-  return { chats: Array.isArray(state.chats) ? state.chats : [] };
+  const chats = Array.isArray(state.chats) ? state.chats : [];
+  return {
+    chats: chats.map((chat) => ({
+      ...chat,
+      telegramChatId: String(chat.telegramChatId || chat.id),
+      threadStatus: chat.threadStatus === 'completed' ? 'completed' : 'active',
+      messages: Array.isArray(chat.messages) ? chat.messages : []
+    }))
+  };
 }
 
 function saveChatState(nextState) {
   writeJson(CHATS_PATH, nextState);
   return nextState;
+}
+
+function createChatRecord({ id, telegramChatId, name, initials, username = '', source = 'Telegram', assignedUserId = '', assignedUserName = '' }) {
+  return {
+    id,
+    telegramChatId: String(telegramChatId || id),
+    name,
+    initials,
+    username,
+    source,
+    assignedUserId,
+    assignedUserName,
+    unread: 0,
+    threadStatus: 'active',
+    createdAt: new Date().toISOString(),
+    lastActivityAt: new Date().toISOString(),
+    closedAt: '',
+    closedByUserId: '',
+    closedByUserName: '',
+    messages: []
+  };
 }
 
 function initialsFromName(name) {
@@ -256,6 +393,11 @@ function compactText(input, limit) {
     return '';
   }
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+}
+
+function buildClosingMessage(date = new Date()) {
+  const hour = date.getHours();
+  return hour >= 6 && hour < 18 ? CLOSING_MESSAGE_DAY : CLOSING_MESSAGE_EVENING;
 }
 
 function messageTextFromUpdate(message) {
@@ -372,6 +514,7 @@ function toDashboardChat(chatRecord) {
 
   return {
     id: chatRecord.id,
+    telegramChatId: chatRecord.telegramChatId || chatRecord.id,
     name: chatRecord.name,
     initials: chatRecord.initials || initialsFromName(chatRecord.name),
     time: formatRelativeMinutes(diffMinutes(new Date(chatRecord.lastActivityAt))),
@@ -387,7 +530,10 @@ function toDashboardChat(chatRecord) {
     lastActivityAt: chatRecord.lastActivityAt,
     assignedUserId: chatRecord.assignedUserId || '',
     assignedUserName: chatRecord.assignedUserName || '',
-    subtitle: `Telegram ID: ${chatRecord.id} • ${chatRecord.username ? `@${chatRecord.username} • ` : ''}Канал: Telegram Bot`,
+    threadStatus: chatRecord.threadStatus || 'active',
+    closedAt: chatRecord.closedAt || '',
+    closedByUserName: chatRecord.closedByUserName || '',
+    subtitle: `Telegram ID: ${chatRecord.telegramChatId || chatRecord.id} • ${chatRecord.username ? `@${chatRecord.username} • ` : ''}Канал: Telegram Bot`,
     messages: chatRecord.messages.map((entry) => ({
       side: entry.side,
       author: entry.author,
@@ -404,10 +550,11 @@ function getDashboardPayload(sessionUser) {
   const sortedChats = state.chats
     .slice()
     .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
+  const activeChats = sortedChats.filter((chat) => (chat.threadStatus || 'active') !== 'completed');
 
   const visibleSourceChats = sessionUser?.role === 'administrator'
-    ? sortedChats
-    : sortedChats.filter((chat) => chat.assignedUserId === sessionUser?.id);
+    ? activeChats
+    : activeChats.filter((chat) => chat.assignedUserId === sessionUser?.id);
 
   const chats = visibleSourceChats.map(toDashboardChat);
 
@@ -416,7 +563,8 @@ function getDashboardPayload(sessionUser) {
     settings: sanitizeSettings(getSettings()),
     chats,
     summary: {
-      totalChats: sortedChats.length,
+      totalChats: activeChats.length,
+      archivedChats: Math.max(0, sortedChats.length - activeChats.length),
       visibleChats: chats.length
     }
   };
@@ -427,6 +575,7 @@ function sanitizeSettings(settings) {
     hasBotToken: Boolean(settings.botToken),
     publicWebhookUrl: settings.publicWebhookUrl || '',
     webhookPath: settings.webhookPath || defaultSettings.webhookPath,
+    assignmentStrategy: settings.assignmentStrategy || defaultSettings.assignmentStrategy,
     lastWebhookSetAt: settings.lastWebhookSetAt || '',
     lastError: settings.lastError || '',
     botInfo: settings.botInfo || null
@@ -483,21 +632,28 @@ function persistIncomingMessage(message) {
     || message.from?.username
     || `Chat ${chatId}`;
 
-  let chat = state.chats.find((entry) => entry.id === chatId);
+  let chat = state.chats.find((entry) =>
+    String(entry.telegramChatId || entry.id) === chatId && (entry.threadStatus || 'active') !== 'completed'
+  );
   if (!chat) {
-    chat = {
-      id: chatId,
+    const latestClosedThread = state.chats
+      .filter((entry) => String(entry.telegramChatId || entry.id) === chatId)
+      .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))[0];
+    const nextId = latestClosedThread ? `${chatId}-${Date.now()}` : chatId;
+    chat = createChatRecord({
+      id: nextId,
+      telegramChatId: chatId,
       name: fullName,
       initials: initialsFromName(fullName),
       username: message.from?.username || '',
       source: 'Telegram',
       assignedUserId: '',
-      assignedUserName: '',
-      unread: 0,
-      lastActivityAt: new Date().toISOString(),
-      messages: []
-    };
+      assignedUserName: ''
+    });
+    applyAutomaticAssignment(state, chat);
     state.chats.push(chat);
+  } else if (!chat.assignedUserId) {
+    applyAutomaticAssignment(state, chat);
   }
 
   chat.name = fullName;
@@ -568,7 +724,27 @@ app.post('/api/users/me/status', requireAuth, (req, res) => {
 
   user.availabilityStatus = normalizeAvailabilityStatus(String(req.body.status || '').trim().toLowerCase());
   saveUserState(userState);
+  if (user.availabilityStatus === 'break' || user.availabilityStatus === 'offline') {
+    rebalanceChatsForUnavailableUser(user.id);
+  }
+  if (user.availabilityStatus === 'online') {
+    assignUnassignedChatsToOnlineSpecialists();
+  }
   return res.json({ ok: true, user: sanitizeUser(user) });
+});
+
+app.post('/api/admin/distribution', requireAdmin, (req, res) => {
+  const current = getSettings();
+  const assignmentStrategy = req.body.assignmentStrategy === 'load-balanced-priority'
+    ? 'load-balanced-priority'
+    : defaultSettings.assignmentStrategy;
+
+  const nextSettings = {
+    ...current,
+    assignmentStrategy
+  };
+  saveSettings(nextSettings);
+  return res.json({ ok: true, settings: sanitizeSettings(nextSettings) });
 });
 
 app.get('/suphub', (req, res) => {
@@ -589,6 +765,14 @@ app.get('/api/admin/settings', requireAdmin, (req, res) => {
 
 app.get('/api/admin/users', requireAdmin, (req, res) => {
   res.json({ ok: true, users: getUserState().users.map(sanitizeUser) });
+});
+
+app.get('/api/admin/workload', requireAdmin, (req, res) => {
+  res.json({ ok: true, users: getOnlineSpecialistWorkload() });
+});
+
+app.get('/api/users/assignable', requireAuth, (req, res) => {
+  res.json({ ok: true, users: getOnlineAssignableUsers() });
 });
 
 app.post('/api/admin/users', requireAdmin, (req, res) => {
@@ -677,6 +861,82 @@ app.post('/api/admin/chats/:id/assign', requireAuth, (req, res) => {
     assignedUserId: targetUser.id,
     assignedUserName: targetUser.fullName
   });
+});
+
+app.get('/api/chats/:id/history', requireAuth, (req, res) => {
+  const state = getChatState();
+  const currentChat = state.chats.find((entry) => entry.id === String(req.params.id));
+  if (!currentChat) {
+    return res.status(404).json({ ok: false, error: 'Чат не знайдено.' });
+  }
+
+  const history = state.chats
+    .filter((entry) =>
+      entry.id !== currentChat.id &&
+      String(entry.telegramChatId || entry.id) === String(currentChat.telegramChatId || currentChat.id) &&
+      (entry.threadStatus || 'active') === 'completed'
+    )
+    .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))
+    .map((entry) => ({
+      id: entry.id,
+      assignedUserName: entry.assignedUserName || '',
+      closedByUserName: entry.closedByUserName || '',
+      closedAt: entry.closedAt || '',
+      createdAt: entry.createdAt || '',
+      lastActivityAt: entry.lastActivityAt,
+      messages: (entry.messages || []).map((message) => ({
+        side: message.side,
+        author: message.author,
+        text: message.text,
+        media: message.media || null,
+        time: new Date(message.timestamp).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }),
+        timestamp: message.timestamp
+      }))
+    }));
+
+  return res.json({ ok: true, history });
+});
+
+app.post('/api/chats/:id/complete', requireAuth, async (req, res) => {
+  const state = getChatState();
+  const chat = state.chats.find((entry) => entry.id === String(req.params.id));
+  if (!chat) {
+    return res.status(404).json({ ok: false, error: 'Чат не знайдено.' });
+  }
+
+  if ((chat.threadStatus || 'active') === 'completed') {
+    return res.status(400).json({ ok: false, error: 'Чат уже завершено.' });
+  }
+
+  const closingMessage = buildClosingMessage(new Date());
+  const timestamp = new Date().toISOString();
+
+  try {
+    const liveBot = getBot();
+    if (liveBot) {
+      await liveBot.telegram.sendMessage(chat.telegramChatId || chat.id, closingMessage);
+    }
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: `Не вдалося завершити чат у Telegram: ${error.message}` });
+  }
+
+  chat.unread = 0;
+  chat.lastActivityAt = timestamp;
+  chat.threadStatus = 'completed';
+  chat.closedAt = timestamp;
+  chat.closedByUserId = req.sessionUser.id;
+  chat.closedByUserName = req.sessionUser.fullName;
+  chat.messages.push({
+    id: `close-${Date.now()}`,
+    side: 'out',
+    author: req.sessionUser.fullName || 'Спеціаліст',
+    text: closingMessage,
+    media: null,
+    timestamp
+  });
+  saveChatState(state);
+
+  return res.json({ ok: true, chatId: chat.id, closedAt: chat.closedAt });
 });
 
 app.post('/api/admin/settings', requireAdmin, async (req, res) => {
@@ -779,7 +1039,7 @@ app.post('/api/admin/messages/outgoing', requireAuth, async (req, res) => {
   try {
     const liveBot = getBot();
     if (liveBot) {
-      await liveBot.telegram.sendMessage(chat.id, String(text).trim());
+      await liveBot.telegram.sendMessage(chat.telegramChatId || chat.id, String(text).trim());
     }
   } catch (error) {
     return res.status(500).json({ ok: false, error: `Не вдалося відправити повідомлення в Telegram: ${error.message}` });

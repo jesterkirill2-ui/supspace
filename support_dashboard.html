@@ -179,6 +179,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .user-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px}
 .user-name{font-size:12px;color:var(--text)}
 .user-sub{font-size:10px;color:var(--text3);margin-top:4px}
+.workload-list{display:flex;flex-direction:column;gap:10px}
+.workload-card{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px}
+.workload-name{font-size:12px;color:var(--text)}
+.workload-sub{font-size:10px;color:var(--text3);margin-top:4px}
 .login-overlay{position:fixed;inset:0;z-index:50;background:rgba(10,10,15,.92);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:24px}
 .login-card{width:min(100%,460px);background:var(--surface);border:1px solid var(--border2);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px}
 .login-title{font-family:var(--display);font-size:18px;line-height:1.3}
@@ -188,6 +192,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .modal-title{font-family:var(--display);font-size:16px;line-height:1.35}
 .modal-text{font-size:11px;color:var(--text3);line-height:1.7}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.history-list{display:flex;flex-direction:column;gap:12px;max-height:420px;overflow:auto;padding-right:4px}
+.history-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.history-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.history-card-title{font-size:12px;color:var(--text)}
+.history-card-sub{font-size:10px;color:var(--text3);line-height:1.7}
+.history-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;background:transparent;border:none;color:inherit;padding:0;cursor:pointer;text-align:left}
+.history-toggle:hover .history-card-title{color:var(--accent2)}
+.history-expand{font-size:10px;color:var(--text3);white-space:nowrap}
+.history-content.hidden{display:none}
+.history-messages{display:flex;flex-direction:column;gap:8px}
+.history-message{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05)}
+.history-message-meta{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:var(--text3);margin-bottom:4px}
 .status-switcher{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
 .status-btn{padding:10px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:.18s}
 .status-btn:hover{border-color:var(--accent);color:var(--text)}
@@ -218,7 +234,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 <body>
 <div class="login-overlay" id="loginOverlay">
   <div class="login-card">
-    <div class="eyebrow">SUP Chat v1.2.0</div>
+    <div class="eyebrow">SUP Chat v1.4.1</div>
     <div class="login-title">Вхід до системи підтримки</div>
     <div class="admin-status" id="loginStatusBox">Увійди під своїм логіном і паролем. Адміністратор побачить окрему адміністративну секцію, спеціаліст — лише робочу область чатів.</div>
     <form class="login-form" id="loginForm">
@@ -389,6 +405,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
             <div class="chat-status">
               <span class="pill" id="chatStatusPill">Остання активність: 2 хв тому</span>
               <div class="status-line">Робоча зона під історію звернень, нотатки та передачу чату в майбутніх етапах.</div>
+              <div class="btn-row">
+                <button class="btn" type="button" id="historyChatBtn">Попередні звернення</button>
+                <button class="btn warn" type="button" id="finishChatBtn">Завершити чат</button>
+              </div>
             </div>
           </div>
 
@@ -472,6 +492,28 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
           </div>
           <div class="admin-status" id="adminStatusBox">Адміністративна секція доступна лише адміністратору. Тут можна керувати Telegram-інтеграцією та користувачами системи.</div>
         </div>
+
+        <div class="helper-card admin-card">
+          <div class="section-title">Online Specialists</div>
+          <div class="admin-hint">Окремий список спеціалістів, які зараз у мережі, з показом кількості відкритих чатів у роботі.</div>
+          <div class="workload-list" id="onlineSpecialistsList"></div>
+        </div>
+
+        <div class="helper-card admin-card">
+          <div class="section-title">Distribution Logic</div>
+          <div class="admin-form">
+            <div class="admin-field full">
+              <label class="admin-label" for="distributionStrategySelect">Логіка розподілу</label>
+              <select class="admin-input" id="distributionStrategySelect">
+                <option value="load-balanced-priority">Автоматично між online-спеціалістами з пріоритетом попереднього оператора та мінімальним навантаженням</option>
+              </select>
+            </div>
+          </div>
+          <div class="admin-inline">
+            <button class="btn primary" type="button" id="saveDistributionBtn">Зберегти логіку</button>
+          </div>
+          <div class="admin-hint">Нові звернення автоматично призначаються на спеціаліста з найменшою кількістю відкритих чатів. Якщо цей клієнт уже мав діалог зі спеціалістом, він буде в пріоритеті за умови мінімального навантаження.</div>
+        </div>
       </section>
 
       <section class="helper-grid">
@@ -535,6 +577,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="admin-status" id="transferStatusBox">Після вибору чат одразу буде перепризначено.</div>
     <div class="modal-actions">
       <button class="btn" type="button" id="closeTransferModalBtn">Скасувати</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="historyModal">
+  <div class="modal-card" style="width:min(100%,760px)">
+    <div class="eyebrow">Chat History</div>
+    <div class="modal-title">Попередні звернення</div>
+    <div class="modal-text" id="historyModalText">Тут буде показано попередні завершені звернення цього користувача.</div>
+    <div class="history-list" id="historyList"></div>
+    <div class="modal-actions">
+      <button class="btn" type="button" id="closeHistoryModalBtn">Закрити</button>
     </div>
   </div>
 </div>
@@ -701,6 +755,8 @@ const chatTitle = document.getElementById('chatTitle');
 const chatSubtitle = document.getElementById('chatSubtitle');
 const chatHeaderFlags = document.getElementById('chatHeaderFlags');
 const chatStatusPill = document.getElementById('chatStatusPill');
+const historyChatBtn = document.getElementById('historyChatBtn');
+const finishChatBtn = document.getElementById('finishChatBtn');
 const composerInput = document.getElementById('composerInput');
 const sendReplyBtn = document.getElementById('sendReplyBtn');
 const botTokenInput = document.getElementById('botTokenInput');
@@ -723,6 +779,9 @@ const loginPassword = document.getElementById('loginPassword');
 const loginStatusBox = document.getElementById('loginStatusBox');
 const adminSection = document.getElementById('adminSection');
 const userList = document.getElementById('userList');
+const onlineSpecialistsList = document.getElementById('onlineSpecialistsList');
+const distributionStrategySelect = document.getElementById('distributionStrategySelect');
+const saveDistributionBtn = document.getElementById('saveDistributionBtn');
 const newUserFullName = document.getElementById('newUserFullName');
 const newUsername = document.getElementById('newUsername');
 const newUserPassword = document.getElementById('newUserPassword');
@@ -736,6 +795,10 @@ const transferUserSelect = document.getElementById('transferUserSelect');
 const transferModalText = document.getElementById('transferModalText');
 const transferStatusBox = document.getElementById('transferStatusBox');
 const closeTransferModalBtn = document.getElementById('closeTransferModalBtn');
+const historyModal = document.getElementById('historyModal');
+const historyModalText = document.getElementById('historyModalText');
+const historyList = document.getElementById('historyList');
+const closeHistoryModalBtn = document.getElementById('closeHistoryModalBtn');
 const statusButtons = Array.from(document.querySelectorAll('[data-status-btn]'));
 
 let currentState = 'active';
@@ -763,6 +826,31 @@ function setTransferStatus(text, tone = '') {
   }
   transferStatusBox.textContent = text;
   transferStatusBox.className = `admin-status${tone ? ` ${tone}` : ''}`;
+}
+
+function renderOnlineSpecialists(users = []) {
+  if (!onlineSpecialistsList) {
+    return;
+  }
+
+  onlineSpecialistsList.innerHTML = '';
+  if (!users.length) {
+    onlineSpecialistsList.innerHTML = '<div class="empty-chat">Наразі немає спеціалістів зі статусом Online.</div>';
+    return;
+  }
+
+  users.forEach((user) => {
+    const card = document.createElement('div');
+    card.className = 'workload-card';
+    card.innerHTML = `
+      <div>
+        <div class="workload-name">${escapeHtml(user.fullName)}</div>
+        <div class="workload-sub">@${escapeHtml(user.username)} • ${escapeHtml(getAvailabilityLabel(user.availabilityStatus))}</div>
+      </div>
+      <span class="pill">${user.activeChats || 0} чат(ів)</span>
+    `;
+    onlineSpecialistsList.appendChild(card);
+  });
 }
 
 function getAvailabilityLabel(status) {
@@ -913,6 +1001,10 @@ function updateAdminMeta(settings = {}) {
     webhookPathInput.value = settings.webhookPath;
   }
 
+  if (distributionStrategySelect && typeof settings.assignmentStrategy === 'string') {
+    distributionStrategySelect.value = settings.assignmentStrategy;
+  }
+
   if (settings.lastError) {
     setAdminStatus(settings.lastError, 'error');
   }
@@ -1014,11 +1106,21 @@ async function loadUsers() {
   const payload = await fetchJson('/api/admin/users');
   specialistUsers = (payload.users || []).filter((user) => user.role === 'specialist');
   renderUserList(payload.users || []);
+  await loadWorkload();
   renderChatView();
 }
 
+async function loadWorkload() {
+  if (sessionUser?.role !== 'administrator') {
+    return;
+  }
+
+  const payload = await fetchJson('/api/admin/workload');
+  renderOnlineSpecialists(payload.users || []);
+}
+
 async function loadAssignableSpecialists() {
-  const payload = await fetchJson('/api/admin/specialists');
+  const payload = await fetchJson('/api/users/assignable');
   assignableUsers = payload.users || [];
   renderChatView();
 }
@@ -1038,11 +1140,26 @@ async function updateMyAvailabilityStatus(status) {
     await loadAssignableSpecialists();
     if (sessionUser?.role === 'administrator') {
       await loadUsers();
+      await loadWorkload();
     }
     setAdminStatus(`Статус змінено на ${getAvailabilityLabel((payload.user || sessionUser).availabilityStatus)}.`, 'success');
   } catch (error) {
     setAdminStatus(error.message, 'error');
     renderAvailabilityControls();
+  }
+}
+
+async function saveDistributionSettings() {
+  try {
+    const payload = await fetchJson('/api/admin/distribution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignmentStrategy: distributionStrategySelect?.value || 'load-balanced-priority' })
+    });
+    updateAdminMeta(payload.settings || {});
+    setAdminStatus('Логіку автоматичного розподілу збережено.', 'success');
+  } catch (error) {
+    setAdminStatus(error.message, 'error');
   }
 }
 
@@ -1092,6 +1209,118 @@ function closeTransferModal() {
   }
 }
 
+function closeHistoryModal() {
+  historyModal?.classList.add('hidden');
+  if (historyList) {
+    historyList.innerHTML = '';
+  }
+}
+
+function renderHistory(history = []) {
+  if (!historyList) {
+    return;
+  }
+
+  historyList.innerHTML = '';
+  if (!history.length) {
+    historyList.innerHTML = '<div class="empty-chat">Попередніх завершених звернень поки немає.</div>';
+    return;
+  }
+
+  history.forEach((thread, index) => {
+    const card = document.createElement('div');
+    card.className = 'history-card';
+    const contentId = `history-thread-${index}`;
+    const closedLabel = thread.closedAt
+      ? new Date(thread.closedAt).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : 'Без дати завершення';
+    card.innerHTML = `
+      <div class="history-card-head">
+        <button class="history-toggle" type="button" data-history-toggle="${contentId}" aria-expanded="false">
+          <div>
+            <div class="history-card-title">#Звернення ${index + 1}</div>
+            <div class="history-card-sub">Спілкувався: ${escapeHtml(thread.assignedUserName || thread.closedByUserName || 'Не вказано')}</div>
+          </div>
+          <span class="history-expand">Відкрити</span>
+        </button>
+      </div>
+      <div class="history-content hidden" id="${contentId}">
+        <div class="history-card-sub" style="margin-bottom:10px">Закрито: ${escapeHtml(closedLabel)}</div>
+        <div class="history-messages">
+          ${(thread.messages || []).map((message) => `
+          <div class="history-message">
+            <div class="history-message-meta">
+              <span>${escapeHtml(message.author || 'Система')}</span>
+              <span>${escapeHtml(message.time || '')}</span>
+            </div>
+            ${message.text ? `<div class="message-text">${escapeHtml(message.text)}</div>` : '<div class="message-text">Медіаповідомлення</div>'}
+          </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    historyList.appendChild(card);
+  });
+
+  historyList.querySelectorAll('[data-history-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const content = historyList.querySelector(`#${button.dataset.historyToggle}`);
+      if (!content) {
+        return;
+      }
+      const isHidden = content.classList.toggle('hidden');
+      button.setAttribute('aria-expanded', String(!isHidden));
+      const label = button.querySelector('.history-expand');
+      if (label) {
+        label.textContent = isHidden ? 'Відкрити' : 'Згорнути';
+      }
+    });
+  });
+}
+
+async function openHistoryModal() {
+  const { chats } = stateConfig[currentState];
+  const chat = chats.find((item) => item.id === selectedChatId);
+  if (!chat || !historyModal) {
+    return;
+  }
+
+  historyModal.classList.remove('hidden');
+  historyModalText.textContent = `Попередні завершені звернення користувача ${chat.name}.`;
+  if (dashboardMode === 'demo') {
+    historyList.innerHTML = '<div class="empty-chat">Історія попередніх звернень буде доступна після запуску локального backend.</div>';
+    return;
+  }
+  historyList.innerHTML = '<div class="empty-chat">Завантажую історію звернень...</div>';
+
+  try {
+    const payload = await fetchJson(`/api/chats/${encodeURIComponent(chat.id)}/history`);
+    renderHistory(payload.history || []);
+  } catch (error) {
+    historyList.innerHTML = `<div class="empty-chat">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function finishCurrentChat() {
+  const { chats } = stateConfig[currentState];
+  const chat = chats.find((item) => item.id === selectedChatId);
+  if (!chat || dashboardMode === 'demo') {
+    return;
+  }
+
+  try {
+    await fetchJson(`/api/chats/${encodeURIComponent(chat.id)}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    await loadDashboardFromApi({ force: true });
+    setAdminStatus('Чат завершено та перенесено з активного списку.', 'success');
+  } catch (error) {
+    setAdminStatus(error.message, 'error');
+  }
+}
+
 async function assignCurrentChat(userId) {
   const { chats } = stateConfig[currentState];
   const chat = chats.find((item) => item.id === selectedChatId);
@@ -1124,6 +1353,7 @@ async function checkSession() {
     }
     if (payload.user?.role === 'administrator') {
       await loadUsers();
+      await loadWorkload();
     }
     return Boolean(payload.authenticated);
   } catch (error) {
@@ -1152,6 +1382,7 @@ async function login(event) {
     await loadAssignableSpecialists();
     if (payload.user?.role === 'administrator') {
       await loadUsers();
+      await loadWorkload();
     }
   } catch (error) {
     setLoginStatus(error.message, 'error');
@@ -1241,6 +1472,9 @@ async function loadDashboardFromApi(options = {}) {
     }
 
     updateAdminMeta(payload.settings || {});
+    if (sessionUser?.role === 'administrator') {
+      loadWorkload().catch(() => {});
+    }
     if (!payload.settings?.lastError) {
       setAdminStatus(chats.length
         ? 'Підключено локальний backend. Список чатів оновлено з Telegram-сховища.'
@@ -1386,6 +1620,8 @@ function renderChatView() {
     messages.classList.add('hidden');
     composer.classList.add('hidden');
     noSelectionState.classList.remove('hidden');
+    historyChatBtn?.classList.add('hidden');
+    finishChatBtn?.classList.add('hidden');
     if (chatAssignBox) {
       chatAssignBox.classList.add('hidden');
     }
@@ -1396,6 +1632,11 @@ function renderChatView() {
   messages.classList.remove('hidden');
   composer.classList.remove('hidden');
   noSelectionState.classList.add('hidden');
+  historyChatBtn?.classList.remove('hidden');
+  finishChatBtn?.classList.remove('hidden');
+  if (finishChatBtn) {
+    finishChatBtn.disabled = dashboardMode === 'demo';
+  }
 
   chatHeaderAvatar.textContent = chat.initials;
   chatTitle.textContent = chat.name;
@@ -1523,9 +1764,12 @@ saveTelegramSettingsBtn.addEventListener('click', saveTelegramSettings);
 registerWebhookBtn.addEventListener('click', registerWebhook);
 refreshDashboardBtn.addEventListener('click', loadDashboardFromApi);
 sendReplyBtn.addEventListener('click', sendReply);
+historyChatBtn?.addEventListener('click', openHistoryModal);
+finishChatBtn?.addEventListener('click', finishCurrentChat);
 loginForm.addEventListener('submit', login);
 createUserBtn.addEventListener('click', createUser);
 refreshUsersBtn.addEventListener('click', loadUsers);
+saveDistributionBtn?.addEventListener('click', saveDistributionSettings);
 transferChatBtn?.addEventListener('click', openTransferModal);
 transferUserSelect?.addEventListener('change', () => {
   if (transferUserSelect.value) {
@@ -1538,12 +1782,21 @@ transferModal?.addEventListener('click', (event) => {
     closeTransferModal();
   }
 });
+closeHistoryModalBtn?.addEventListener('click', closeHistoryModal);
+historyModal?.addEventListener('click', (event) => {
+  if (event.target === historyModal) {
+    closeHistoryModal();
+  }
+});
 statusButtons.forEach((button) => {
   button.addEventListener('click', () => updateMyAvailabilityStatus(button.dataset.statusBtn));
 });
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !transferModal?.classList.contains('hidden')) {
     closeTransferModal();
+  }
+  if (event.key === 'Escape' && !historyModal?.classList.contains('hidden')) {
+    closeHistoryModal();
   }
 });
 document.addEventListener('visibilitychange', () => {
