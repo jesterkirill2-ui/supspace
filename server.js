@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const fs = require('fs');
 const https = require('https');
 const path = require('path');
@@ -11,6 +12,9 @@ const HOST = process.env.HOST || '0.0.0.0';
 const STORAGE_DIR = path.join(__dirname, 'storage');
 const SETTINGS_PATH = path.join(STORAGE_DIR, 'telegram-settings.json');
 const CHATS_PATH = path.join(STORAGE_DIR, 'telegram-chats.json');
+const USERS_PATH = path.join(STORAGE_DIR, 'users.json');
+const SESSION_COOKIE = 'sup_session';
+const sessions = new Map();
 
 const defaultSettings = {
   botToken: '',
@@ -33,6 +37,28 @@ function ensureStorage() {
   if (!fs.existsSync(CHATS_PATH)) {
     fs.writeFileSync(CHATS_PATH, JSON.stringify({ chats: [] }, null, 2), 'utf8');
   }
+
+  if (!fs.existsSync(USERS_PATH)) {
+    const seedUsers = {
+      users: [
+        createStoredUser({
+          id: 'admin-1',
+          username: 'admin',
+          fullName: 'System Administrator',
+          role: 'administrator',
+          password: 'admin123'
+        }),
+        createStoredUser({
+          id: 'specialist-1',
+          username: 'specialist',
+          fullName: 'Support Specialist',
+          role: 'specialist',
+          password: 'specialist123'
+        })
+      ]
+    };
+    fs.writeFileSync(USERS_PATH, JSON.stringify(seedUsers, null, 2), 'utf8');
+  }
 }
 
 function readJson(filePath, fallback) {
@@ -45,6 +71,123 @@ function readJson(filePath, fallback) {
 
 function writeJson(filePath, payload) {
   fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf8');
+}
+
+function createPasswordHash(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (!storedHash || !password) {
+    return false;
+  }
+  const [salt, hash] = String(storedHash).split(':');
+  if (!salt || !hash) {
+    return false;
+  }
+  const derived = crypto.scryptSync(password, salt, 64).toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(derived, 'hex'));
+}
+
+function normalizeAvailabilityStatus(status) {
+  return ['online', 'break', 'offline'].includes(status) ? status : 'online';
+}
+
+function createStoredUser({ id = crypto.randomUUID(), username, fullName, role, password, availabilityStatus = 'online' }) {
+  return {
+    id,
+    username: String(username || '').trim().toLowerCase(),
+    fullName: String(fullName || '').trim(),
+    role: role === 'administrator' ? 'administrator' : 'specialist',
+    availabilityStatus: normalizeAvailabilityStatus(availabilityStatus),
+    passwordHash: createPasswordHash(password),
+    createdAt: new Date().toISOString()
+  };
+}
+
+function getUserState() {
+  const state = readJson(USERS_PATH, { users: [] });
+  const users = Array.isArray(state.users) ? state.users : [];
+  return {
+    users: users.map((user) => ({
+      ...user,
+      availabilityStatus: normalizeAvailabilityStatus(user.availabilityStatus)
+    }))
+  };
+}
+
+function saveUserState(nextState) {
+  writeJson(USERS_PATH, nextState);
+  return nextState;
+}
+
+function sanitizeUser(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    fullName: user.fullName,
+    role: user.role,
+    availabilityStatus: normalizeAvailabilityStatus(user.availabilityStatus),
+    createdAt: user.createdAt
+  };
+}
+
+function getSpecialistUsers() {
+  return getUserState().users
+    .filter((user) => normalizeAvailabilityStatus(user.availabilityStatus) === 'online')
+    .map(sanitizeUser);
+}
+
+function parseCookies(cookieHeader = '') {
+  return cookieHeader
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce((acc, entry) => {
+      const [key, ...rest] = entry.split('=');
+      acc[key] = decodeURIComponent(rest.join('=') || '');
+      return acc;
+    }, {});
+}
+
+function getSessionUser(req) {
+  const cookies = parseCookies(req.headers.cookie || '');
+  const sessionId = cookies[SESSION_COOKIE];
+  if (!sessionId || !sessions.has(sessionId)) {
+    return null;
+  }
+
+  const session = sessions.get(sessionId);
+  const users = getUserState().users;
+  const user = users.find((entry) => entry.id === session.userId);
+  if (!user) {
+    sessions.delete(sessionId);
+    return null;
+  }
+
+  return sanitizeUser(user);
+}
+
+function requireAuth(req, res, next) {
+  const user = getSessionUser(req);
+  if (!user) {
+    return res.status(401).json({ ok: false, error: 'Потрібно увійти в систему.' });
+  }
+  req.sessionUser = user;
+  return next();
+}
+
+function requireAdmin(req, res, next) {
+  const user = getSessionUser(req);
+  if (!user) {
+    return res.status(401).json({ ok: false, error: 'Потрібно увійти в систему.' });
+  }
+  if (user.role !== 'administrator') {
+    return res.status(403).json({ ok: false, error: 'Недостатньо прав доступу.' });
+  }
+  req.sessionUser = user;
+  return next();
 }
 
 function getSettings() {
@@ -242,6 +385,8 @@ function toDashboardChat(chatRecord) {
     waitTime: hasWait ? `Без відп. ${formatDurationCompact(waitingSeconds)}` : '',
     waitStartedAt: lastPendingIncomingMessage ? lastPendingIncomingMessage.timestamp : '',
     lastActivityAt: chatRecord.lastActivityAt,
+    assignedUserId: chatRecord.assignedUserId || '',
+    assignedUserName: chatRecord.assignedUserName || '',
     subtitle: `Telegram ID: ${chatRecord.id} • ${chatRecord.username ? `@${chatRecord.username} • ` : ''}Канал: Telegram Bot`,
     messages: chatRecord.messages.map((entry) => ({
       side: entry.side,
@@ -254,16 +399,26 @@ function toDashboardChat(chatRecord) {
   };
 }
 
-function getDashboardPayload() {
+function getDashboardPayload(sessionUser) {
   const state = getChatState();
-  const chats = state.chats
+  const sortedChats = state.chats
     .slice()
-    .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))
-    .map(toDashboardChat);
+    .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
+
+  const visibleSourceChats = sessionUser?.role === 'administrator'
+    ? sortedChats
+    : sortedChats.filter((chat) => chat.assignedUserId === sessionUser?.id);
+
+  const chats = visibleSourceChats.map(toDashboardChat);
 
   return {
+    sessionUser,
     settings: sanitizeSettings(getSettings()),
-    chats
+    chats,
+    summary: {
+      totalChats: sortedChats.length,
+      visibleChats: chats.length
+    }
   };
 }
 
@@ -336,6 +491,8 @@ function persistIncomingMessage(message) {
       initials: initialsFromName(fullName),
       username: message.from?.username || '',
       source: 'Telegram',
+      assignedUserId: '',
+      assignedUserName: '',
       unread: 0,
       lastActivityAt: new Date().toISOString(),
       messages: []
@@ -371,6 +528,49 @@ app.get('/support', (req, res) => {
   res.sendFile(path.join(__dirname, 'support_dashboard.html'));
 });
 
+app.get('/api/auth/session', (req, res) => {
+  const user = getSessionUser(req);
+  res.json({ ok: true, authenticated: Boolean(user), user });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const username = String(req.body.username || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
+  const users = getUserState().users;
+  const user = users.find((entry) => entry.username === username);
+
+  if (!user || !verifyPassword(password, user.passwordHash)) {
+    return res.status(401).json({ ok: false, error: 'Невірний логін або пароль.' });
+  }
+
+  const sessionId = crypto.randomUUID();
+  sessions.set(sessionId, { userId: user.id, createdAt: new Date().toISOString() });
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 12}`);
+  return res.json({ ok: true, user: sanitizeUser(user) });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const cookies = parseCookies(req.headers.cookie || '');
+  const sessionId = cookies[SESSION_COOKIE];
+  if (sessionId) {
+    sessions.delete(sessionId);
+  }
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`);
+  return res.json({ ok: true });
+});
+
+app.post('/api/users/me/status', requireAuth, (req, res) => {
+  const userState = getUserState();
+  const user = userState.users.find((entry) => entry.id === req.sessionUser.id);
+  if (!user) {
+    return res.status(404).json({ ok: false, error: 'Користувача не знайдено.' });
+  }
+
+  user.availabilityStatus = normalizeAvailabilityStatus(String(req.body.status || '').trim().toLowerCase());
+  saveUserState(userState);
+  return res.json({ ok: true, user: sanitizeUser(user) });
+});
+
 app.get('/suphub', (req, res) => {
   res.sendFile(path.join(__dirname, 'suphub_dashboard.html'));
 });
@@ -379,15 +579,107 @@ app.get('/forecast', (req, res) => {
   res.sendFile(path.join(__dirname, 'forecast_dashboard.html'));
 });
 
-app.get('/api/dashboard', (req, res) => {
-  res.json(getDashboardPayload());
+app.get('/api/dashboard', requireAuth, (req, res) => {
+  res.json(getDashboardPayload(req.sessionUser));
 });
 
-app.get('/api/admin/settings', (req, res) => {
+app.get('/api/admin/settings', requireAdmin, (req, res) => {
   res.json(sanitizeSettings(getSettings()));
 });
 
-app.post('/api/admin/settings', async (req, res) => {
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  res.json({ ok: true, users: getUserState().users.map(sanitizeUser) });
+});
+
+app.post('/api/admin/users', requireAdmin, (req, res) => {
+  const userState = getUserState();
+  const username = String(req.body.username || '').trim().toLowerCase();
+  const fullName = String(req.body.fullName || '').trim();
+  const password = String(req.body.password || '').trim();
+  const role = req.body.role === 'administrator' ? 'administrator' : 'specialist';
+
+  if (!username || !fullName || !password) {
+    return res.status(400).json({ ok: false, error: 'Потрібні username, fullName та password.' });
+  }
+
+  if (userState.users.some((entry) => entry.username === username)) {
+    return res.status(400).json({ ok: false, error: 'Користувач з таким логіном уже існує.' });
+  }
+
+  const newUser = createStoredUser({ username, fullName, role, password });
+  userState.users.push(newUser);
+  saveUserState(userState);
+  return res.json({ ok: true, user: sanitizeUser(newUser) });
+});
+
+app.patch('/api/admin/users/:id', requireAdmin, (req, res) => {
+  const userState = getUserState();
+  const user = userState.users.find((entry) => entry.id === req.params.id);
+  if (!user) {
+    return res.status(404).json({ ok: false, error: 'Користувача не знайдено.' });
+  }
+
+  if (req.body.fullName) {
+    user.fullName = String(req.body.fullName).trim();
+  }
+  if (req.body.role === 'administrator' || req.body.role === 'specialist') {
+    user.role = req.body.role;
+  }
+  if (req.body.password) {
+    user.passwordHash = createPasswordHash(String(req.body.password).trim());
+  }
+
+  saveUserState(userState);
+  return res.json({ ok: true, user: sanitizeUser(user) });
+});
+
+app.get('/api/admin/specialists', requireAuth, (req, res) => {
+  res.json({ ok: true, users: getSpecialistUsers() });
+});
+
+app.post('/api/admin/chats/:id/assign', requireAuth, (req, res) => {
+  const state = getChatState();
+  const chat = state.chats.find((entry) => entry.id === String(req.params.id));
+  if (!chat) {
+    return res.status(404).json({ ok: false, error: 'Чат не знайдено.' });
+  }
+
+  if (!req.sessionUser || (req.sessionUser.role !== 'administrator' && req.sessionUser.role !== 'specialist')) {
+    return res.status(403).json({ ok: false, error: 'Недостатньо прав доступу.' });
+  }
+
+  const targetUserId = String(req.body.userId || '').trim();
+  if (!targetUserId) {
+    chat.assignedUserId = '';
+    chat.assignedUserName = '';
+    saveChatState(state);
+    return res.json({ ok: true, chatId: chat.id, assignedUserId: '', assignedUserName: '' });
+  }
+
+  const targetUser = getUserState().users.find((user) =>
+    user.id === targetUserId && (user.role === 'specialist' || user.role === 'administrator')
+  );
+  if (!targetUser) {
+    return res.status(400).json({ ok: false, error: 'Можна передати чат лише на адміністратора або спеціаліста.' });
+  }
+
+  if (normalizeAvailabilityStatus(targetUser.availabilityStatus) !== 'online') {
+    return res.status(400).json({ ok: false, error: 'Можна призначати нові чати лише співробітникам зі статусом Online.' });
+  }
+
+  chat.assignedUserId = targetUser.id;
+  chat.assignedUserName = targetUser.fullName;
+  saveChatState(state);
+
+  return res.json({
+    ok: true,
+    chatId: chat.id,
+    assignedUserId: targetUser.id,
+    assignedUserName: targetUser.fullName
+  });
+});
+
+app.post('/api/admin/settings', requireAdmin, async (req, res) => {
   const current = getSettings();
   const botToken = String(req.body.botToken || '').trim();
   const publicWebhookUrl = String(req.body.publicWebhookUrl || '').trim().replace(/\/$/, '');
@@ -420,7 +712,7 @@ app.post('/api/admin/settings', async (req, res) => {
   return res.json({ ok: true, settings: sanitizeSettings(getSettings()) });
 });
 
-app.post('/api/admin/webhook/register', async (req, res) => {
+app.post('/api/admin/webhook/register', requireAdmin, async (req, res) => {
   const settings = getSettings();
   if (!settings.botToken) {
     return res.status(400).json({ ok: false, error: 'Спочатку збережіть bot token.' });
@@ -470,7 +762,7 @@ app.post(defaultSettings.webhookPath, async (req, res) => {
   }
 });
 
-app.post('/api/admin/messages/outgoing', async (req, res) => {
+app.post('/api/admin/messages/outgoing', requireAuth, async (req, res) => {
   const { chatId, text } = req.body || {};
   if (!chatId || !String(text || '').trim()) {
     return res.status(400).json({ ok: false, error: 'Потрібні chatId і текст повідомлення.' });
@@ -508,7 +800,7 @@ app.post('/api/admin/messages/outgoing', async (req, res) => {
   return res.json({ ok: true });
 });
 
-app.get('/api/telegram/file/:fileId', async (req, res) => {
+app.get('/api/telegram/file/:fileId', requireAuth, async (req, res) => {
   try {
     const settings = getSettings();
     if (!settings.botToken) {
