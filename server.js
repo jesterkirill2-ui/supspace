@@ -21,12 +21,12 @@ const defaultSettings = {
   publicWebhookUrl: '',
   webhookPath: '/telegram/webhook',
   assignmentStrategy: 'load-balanced-priority',
+  greetingTemplate: 'Добрий день! З вами спеціаліст {specialistName}, я зроблю все можливе щоб вам допомогти :)',
+  closingTemplate: 'Якщо будуть питання, звертайтесь до наших офіційних каналів комунікації! Дякуємо за звернення, та гарного {timeOfDay} :)',
   lastWebhookSetAt: '',
   lastError: '',
   botInfo: null
 };
-const CLOSING_MESSAGE_DAY = 'Якщо будуть питання, звертайтесь до наших офіційних каналів комунікації! Дякуємо за звернення, та гарного дня :)';
-const CLOSING_MESSAGE_EVENING = 'Якщо будуть питання, звертайтесь до наших офіційних каналів комунікації! Дякуємо за звернення, та гарного вечора :)';
 
 function ensureStorage() {
   if (!fs.existsSync(STORAGE_DIR)) {
@@ -213,6 +213,35 @@ function applyAutomaticAssignment(state, chat) {
   assignChatRecord(chat, assignee);
 }
 
+async function sendGreetingForAssignedChat(chat) {
+  if (!chat?.assignedUserId || chat.greetingSentAt) {
+    return;
+  }
+
+  try {
+    const liveBot = getBot();
+    if (!liveBot) {
+      return;
+    }
+
+    const greetingMessage = buildGreetingMessage(chat.assignedUserName || 'спеціаліст');
+    const timestamp = new Date().toISOString();
+    await liveBot.telegram.sendMessage(chat.telegramChatId || chat.id, greetingMessage);
+    chat.greetingSentAt = timestamp;
+    chat.lastActivityAt = timestamp;
+    chat.messages.push({
+      id: `greeting-${Date.now()}`,
+      side: 'out',
+      author: chat.assignedUserName || 'Спеціаліст',
+      text: greetingMessage,
+      media: null,
+      timestamp
+    });
+  } catch (error) {
+    return;
+  }
+}
+
 function rebalanceChatsForUnavailableUser(unavailableUserId) {
   const state = getChatState();
   const chatsToReassign = getActiveChats(state).filter((chat) => chat.assignedUserId === unavailableUserId);
@@ -226,14 +255,15 @@ function rebalanceChatsForUnavailableUser(unavailableUserId) {
   return state;
 }
 
-function assignUnassignedChatsToOnlineSpecialists() {
+async function assignUnassignedChatsToOnlineSpecialists() {
   const state = getChatState();
   const unassignedChats = getActiveChats(state).filter((chat) => !chat.assignedUserId);
 
-  unassignedChats.forEach((chat) => {
+  for (const chat of unassignedChats) {
     const assignee = pickBalancedAssignee(state, chat.telegramChatId || chat.id, chat.id);
     assignChatRecord(chat, assignee);
-  });
+    await sendGreetingForAssignedChat(chat);
+  }
 
   saveChatState(state);
   return state;
@@ -339,6 +369,7 @@ function createChatRecord({ id, telegramChatId, name, initials, username = '', s
     threadStatus: 'active',
     createdAt: new Date().toISOString(),
     lastActivityAt: new Date().toISOString(),
+    greetingSentAt: '',
     closedAt: '',
     closedByUserId: '',
     closedByUserName: '',
@@ -396,8 +427,29 @@ function compactText(input, limit) {
 }
 
 function buildClosingMessage(date = new Date()) {
+  const settings = getSettings();
+  return renderMessageTemplate(settings.closingTemplate || defaultSettings.closingTemplate, {
+    timeOfDay: getTimeOfDayWord(date)
+  });
+}
+
+function getTimeOfDayWord(date = new Date()) {
   const hour = date.getHours();
-  return hour >= 6 && hour < 18 ? CLOSING_MESSAGE_DAY : CLOSING_MESSAGE_EVENING;
+  return hour >= 6 && hour < 18 ? 'дня' : 'вечора';
+}
+
+function renderMessageTemplate(template, context = {}) {
+  return String(template || '')
+    .replace(/\{specialistName\}/g, String(context.specialistName || 'спеціаліст'))
+    .replace(/\{timeOfDay\}/g, String(context.timeOfDay || getTimeOfDayWord(new Date())))
+    .trim();
+}
+
+function buildGreetingMessage(specialistName) {
+  const settings = getSettings();
+  return renderMessageTemplate(settings.greetingTemplate || defaultSettings.greetingTemplate, {
+    specialistName
+  });
 }
 
 function messageTextFromUpdate(message) {
@@ -576,6 +628,8 @@ function sanitizeSettings(settings) {
     publicWebhookUrl: settings.publicWebhookUrl || '',
     webhookPath: settings.webhookPath || defaultSettings.webhookPath,
     assignmentStrategy: settings.assignmentStrategy || defaultSettings.assignmentStrategy,
+    greetingTemplate: settings.greetingTemplate || defaultSettings.greetingTemplate,
+    closingTemplate: settings.closingTemplate || defaultSettings.closingTemplate,
     lastWebhookSetAt: settings.lastWebhookSetAt || '',
     lastError: settings.lastError || '',
     botInfo: settings.botInfo || null
@@ -592,7 +646,7 @@ function buildBot(token) {
   const instance = new Telegraf(token);
 
   instance.on('message', async (ctx) => {
-    persistIncomingMessage(ctx.update.message);
+    await persistIncomingMessage(ctx.update.message);
   });
 
   return instance;
@@ -618,7 +672,7 @@ function resetBot() {
   bot = null;
 }
 
-function persistIncomingMessage(message) {
+async function persistIncomingMessage(message) {
   if (!message || !message.chat) {
     return;
   }
@@ -635,6 +689,7 @@ function persistIncomingMessage(message) {
   let chat = state.chats.find((entry) =>
     String(entry.telegramChatId || entry.id) === chatId && (entry.threadStatus || 'active') !== 'completed'
   );
+  let shouldSendGreeting = false;
   if (!chat) {
     const latestClosedThread = state.chats
       .filter((entry) => String(entry.telegramChatId || entry.id) === chatId)
@@ -652,8 +707,10 @@ function persistIncomingMessage(message) {
     });
     applyAutomaticAssignment(state, chat);
     state.chats.push(chat);
+    shouldSendGreeting = Boolean(chat.assignedUserId && !chat.greetingSentAt);
   } else if (!chat.assignedUserId) {
     applyAutomaticAssignment(state, chat);
+    shouldSendGreeting = Boolean(chat.assignedUserId && !chat.greetingSentAt);
   }
 
   chat.name = fullName;
@@ -669,6 +726,10 @@ function persistIncomingMessage(message) {
     media,
     timestamp: chat.lastActivityAt
   });
+
+  if (shouldSendGreeting) {
+    await sendGreetingForAssignedChat(chat);
+  }
 
   saveChatState(state);
 }
@@ -715,7 +776,7 @@ app.post('/api/auth/logout', (req, res) => {
   return res.json({ ok: true });
 });
 
-app.post('/api/users/me/status', requireAuth, (req, res) => {
+app.post('/api/users/me/status', requireAuth, async (req, res) => {
   const userState = getUserState();
   const user = userState.users.find((entry) => entry.id === req.sessionUser.id);
   if (!user) {
@@ -728,7 +789,7 @@ app.post('/api/users/me/status', requireAuth, (req, res) => {
     rebalanceChatsForUnavailableUser(user.id);
   }
   if (user.availabilityStatus === 'online') {
-    assignUnassignedChatsToOnlineSpecialists();
+    await assignUnassignedChatsToOnlineSpecialists();
   }
   return res.json({ ok: true, user: sanitizeUser(user) });
 });
@@ -742,6 +803,17 @@ app.post('/api/admin/distribution', requireAdmin, (req, res) => {
   const nextSettings = {
     ...current,
     assignmentStrategy
+  };
+  saveSettings(nextSettings);
+  return res.json({ ok: true, settings: sanitizeSettings(nextSettings) });
+});
+
+app.post('/api/admin/message-templates', requireAdmin, (req, res) => {
+  const current = getSettings();
+  const nextSettings = {
+    ...current,
+    greetingTemplate: String(req.body.greetingTemplate || defaultSettings.greetingTemplate).trim() || defaultSettings.greetingTemplate,
+    closingTemplate: String(req.body.closingTemplate || defaultSettings.closingTemplate).trim() || defaultSettings.closingTemplate
   };
   saveSettings(nextSettings);
   return res.json({ ok: true, settings: sanitizeSettings(nextSettings) });

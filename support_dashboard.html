@@ -234,7 +234,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 <body>
 <div class="login-overlay" id="loginOverlay">
   <div class="login-card">
-    <div class="eyebrow">SUP Chat v1.4.1</div>
+    <div class="eyebrow">SUP Chat v1.4.3</div>
     <div class="login-title">Вхід до системи підтримки</div>
     <div class="admin-status" id="loginStatusBox">Увійди під своїм логіном і паролем. Адміністратор побачить окрему адміністративну секцію, спеціаліст — лише робочу область чатів.</div>
     <form class="login-form" id="loginForm">
@@ -514,6 +514,24 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
           </div>
           <div class="admin-hint">Нові звернення автоматично призначаються на спеціаліста з найменшою кількістю відкритих чатів. Якщо цей клієнт уже мав діалог зі спеціалістом, він буде в пріоритеті за умови мінімального навантаження.</div>
         </div>
+
+        <div class="helper-card admin-card">
+          <div class="section-title">Auto Messages</div>
+          <div class="admin-form">
+            <div class="admin-field full">
+              <label class="admin-label" for="greetingTemplateInput">Привітання</label>
+              <textarea class="admin-input" id="greetingTemplateInput" rows="3" placeholder="Добрий день! З вами спеціаліст {specialistName}, я зроблю все можливе щоб вам допомогти :)"></textarea>
+            </div>
+            <div class="admin-field full">
+              <label class="admin-label" for="closingTemplateInput">Завершення чату</label>
+              <textarea class="admin-input" id="closingTemplateInput" rows="3" placeholder="Якщо будуть питання, звертайтесь до наших офіційних каналів комунікації! Дякуємо за звернення, та гарного {timeOfDay} :)"></textarea>
+            </div>
+          </div>
+          <div class="admin-inline">
+            <button class="btn primary" type="button" id="saveMessageTemplatesBtn">Зберегти шаблони</button>
+          </div>
+          <div class="admin-hint">Підтримуються плейсхолдери: `{specialistName}` для привітання та `{timeOfDay}` для завершення чату.</div>
+        </div>
       </section>
 
       <section class="helper-grid">
@@ -782,6 +800,9 @@ const userList = document.getElementById('userList');
 const onlineSpecialistsList = document.getElementById('onlineSpecialistsList');
 const distributionStrategySelect = document.getElementById('distributionStrategySelect');
 const saveDistributionBtn = document.getElementById('saveDistributionBtn');
+const greetingTemplateInput = document.getElementById('greetingTemplateInput');
+const closingTemplateInput = document.getElementById('closingTemplateInput');
+const saveMessageTemplatesBtn = document.getElementById('saveMessageTemplatesBtn');
 const newUserFullName = document.getElementById('newUserFullName');
 const newUsername = document.getElementById('newUsername');
 const newUserPassword = document.getElementById('newUserPassword');
@@ -814,6 +835,7 @@ let sessionUser = null;
 let specialistUsers = [];
 let assignableUsers = [];
 let dashboardSummary = { totalChats: 0, visibleChats: 0 };
+let messageTemplatesDirty = false;
 
 function setAdminStatus(text, tone = '') {
   adminStatusBox.textContent = text;
@@ -1005,6 +1027,18 @@ function updateAdminMeta(settings = {}) {
     distributionStrategySelect.value = settings.assignmentStrategy;
   }
 
+  const isEditingTemplates = messageTemplatesDirty
+    || document.activeElement === greetingTemplateInput
+    || document.activeElement === closingTemplateInput;
+
+  if (greetingTemplateInput && typeof settings.greetingTemplate === 'string' && !isEditingTemplates) {
+    greetingTemplateInput.value = settings.greetingTemplate;
+  }
+
+  if (closingTemplateInput && typeof settings.closingTemplate === 'string' && !isEditingTemplates) {
+    closingTemplateInput.value = settings.closingTemplate;
+  }
+
   if (settings.lastError) {
     setAdminStatus(settings.lastError, 'error');
   }
@@ -1158,6 +1192,24 @@ async function saveDistributionSettings() {
     });
     updateAdminMeta(payload.settings || {});
     setAdminStatus('Логіку автоматичного розподілу збережено.', 'success');
+  } catch (error) {
+    setAdminStatus(error.message, 'error');
+  }
+}
+
+async function saveMessageTemplates() {
+  try {
+    const payload = await fetchJson('/api/admin/message-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        greetingTemplate: greetingTemplateInput?.value || '',
+        closingTemplate: closingTemplateInput?.value || ''
+      })
+    });
+    messageTemplatesDirty = false;
+    updateAdminMeta(payload.settings || {});
+    setAdminStatus('Автоматичні повідомлення збережено.', 'success');
   } catch (error) {
     setAdminStatus(error.message, 'error');
   }
@@ -1770,6 +1822,13 @@ loginForm.addEventListener('submit', login);
 createUserBtn.addEventListener('click', createUser);
 refreshUsersBtn.addEventListener('click', loadUsers);
 saveDistributionBtn?.addEventListener('click', saveDistributionSettings);
+saveMessageTemplatesBtn?.addEventListener('click', saveMessageTemplates);
+greetingTemplateInput?.addEventListener('input', () => {
+  messageTemplatesDirty = true;
+});
+closingTemplateInput?.addEventListener('input', () => {
+  messageTemplatesDirty = true;
+});
 transferChatBtn?.addEventListener('click', openTransferModal);
 transferUserSelect?.addEventListener('change', () => {
   if (transferUserSelect.value) {
