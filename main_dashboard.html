@@ -652,7 +652,7 @@ const PAGE_SIZE = 25;
 let infographicState = null;
 let statusInfographicState = null;
 let taskStatusHistory = new Map();
-const DASHBOARD_VERSION = 'v1.0.5';
+const DASHBOARD_VERSION = 'v1.0.6';
 
 function isActiveTask(task) {
   if (!task) return false;
@@ -3115,7 +3115,10 @@ computeAnalytics = function computeAnalyticsV105(arr) {
 
   const avgTotal = avg(closedArr.map(t => diffMs(t.dateCreated, t.dateFinished || t.dateExec)).filter(v => v !== null));
   const medTotal = median(closedArr.map(t => diffMs(t.dateCreated, t.dateFinished || t.dateExec)).filter(v => v !== null));
-  const ftrTimes = arr.filter(t => t.ftrAssigned && t.ftrAnswer).map(t => diffMs(t.ftrAssigned, t.ftrAnswer)).filter(v => v !== null);
+  const ftrTimes = arr
+    .filter(t => t.ftrAssigned && t.ftrAnswer)
+    .map(t => workingMinutes(t.ftrAssigned, t.ftrAnswer) * 60000)
+    .filter(v => v !== null);
   const avgFtr = avg(ftrTimes);
   const medFtr = median(ftrTimes);
   const ftrCoverage = arr.filter(t => t.ftrAssigned).length;
@@ -3298,6 +3301,128 @@ buildInfographicCanvas = function buildInfographicCanvasV105(payload) {
   ctx.fillText('FCR = унікальні звернення / загальна кількість звернень у вибірці', 92, 900);
 
   return canvas;
+};
+
+function getTaskFrtInfo(task) {
+  if (!task || !task.ftrAssigned || !task.ftrAnswer) return null;
+  const minutes = workingMinutes(task.ftrAssigned, task.ftrAnswer);
+  const ms = minutes * 60000;
+  if (ms === null) return null;
+  return {
+    ms,
+    minutes: Math.round(minutes),
+    formatted: fmtDur(ms),
+    assigned: task.ftrAssigned,
+    answer: task.ftrAnswer,
+  };
+}
+
+function buildFrtWatchlistHtml(sourceTasks) {
+  const rows = (sourceTasks || [])
+    .map(task => ({ task, frt: getTaskFrtInfo(task) }))
+    .filter(item => item.frt && item.frt.ms > 5 * 60000)
+    .sort((a, b) => b.frt.ms - a.frt.ms);
+
+  const body = rows.length
+    ? rows.map(item => `
+        <div style="display:grid;grid-template-columns:88px minmax(0,1.5fr) 1fr 1fr 92px;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);cursor:pointer;" onclick="selectTask('${item.task.num}')">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--accent2);">#${item.task.num}</div>
+          <div style="min-width:0;">
+            <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.task.title}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px;">${fmtDate(item.frt.assigned)} → ${fmtDate(item.frt.answer)}</div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);">${item.task.author || '—'}</div>
+          <div style="font-size:11px;color:var(--text2);">${item.task.executor || '—'}</div>
+          <div style="font-family:var(--display);font-size:18px;color:${item.frt.ms > 30 * 60000 ? 'var(--cancel)' : 'var(--wait)'};">${item.frt.formatted}</div>
+        </div>
+      `).join('')
+    : '<div class="leaderboard-empty">У поточній вибірці немає задач, де FRT перевищує 5 хвилин</div>';
+
+  return `
+    <div class="panel-card fade-in">
+      <div class="panel-head">
+        <div class="panel-title">FRT > 5 хв</div>
+        <div style="font-size:10px;color:var(--text3);">${rows.length} задач для аналізу</div>
+      </div>
+      <div style="display:grid;grid-template-columns:88px minmax(0,1.5fr) 1fr 1fr 92px;gap:10px;padding:0 4px 10px;color:var(--text3);font-size:9px;letter-spacing:.12em;text-transform:uppercase;">
+        <div>Номер</div>
+        <div>Задача</div>
+        <div>Постановник</div>
+        <div>Виконавець</div>
+        <div>FRT</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">${body}</div>
+    </div>
+  `;
+}
+
+renderRoadmap = function renderRoadmapV106(task) {
+  const panel = document.getElementById('rightPanel');
+  if (!panel) return;
+
+  if (!task) {
+    panel.innerHTML = `
+      <div class="roadmap-empty">
+        <div class="roadmap-empty-icon">◌</div>
+        <div class="roadmap-empty-text">Оберіть задачу, щоб подивитися хронологію, FRT та деталі</div>
+      </div>
+      ${buildFrtWatchlistHtml(getFiltered())}
+    `;
+    return;
+  }
+
+  originalRenderRoadmap(task);
+
+  const detailCard = panel.querySelector('.panel-card.fade-in');
+  const roadmapCard = panel.querySelectorAll('.panel-card.fade-in')[1];
+  const frtInfo = getTaskFrtInfo(task);
+
+  if (detailCard && frtInfo) {
+    const badges = detailCard.querySelector('.detail-badges');
+    if (badges && !detailCard.querySelector('.frt-time-badge')) {
+      badges.insertAdjacentHTML('beforeend', `<div class="sla-time-badge frt-time-badge">FRT: ${frtInfo.formatted}</div>`);
+    }
+    const meta = detailCard.querySelector('.detail-meta');
+    if (meta && !detailCard.querySelector('.meta-item-frt')) {
+      meta.insertAdjacentHTML('beforeend', `
+        <div class="meta-item meta-item-frt">
+          <div class="meta-key">FRT</div>
+          <div class="meta-val">${frtInfo.formatted}</div>
+        </div>
+        <div class="meta-item meta-item-frt">
+          <div class="meta-key">Призначено / відповідь</div>
+          <div class="meta-val">${fmtDate(frtInfo.assigned)} → ${fmtDate(frtInfo.answer)}</div>
+        </div>
+      `);
+    }
+  }
+
+  const historyHtml = buildStatusHistoryHtml(task);
+  if (historyHtml && roadmapCard && !roadmapCard.querySelector('.roadmap-history')) {
+    roadmapCard.insertAdjacentHTML('beforeend', historyHtml);
+  } else if (historyHtml && !roadmapCard && !panel.querySelector('.roadmap-history')) {
+    panel.insertAdjacentHTML('beforeend', `<div class="panel-card fade-in">${historyHtml}</div>`);
+  }
+
+  if (!panel.querySelector('.frt-watchlist-card')) {
+    panel.insertAdjacentHTML('beforeend', buildFrtWatchlistHtml(getFiltered()).replace('panel-card fade-in', 'panel-card fade-in frt-watchlist-card'));
+  }
+};
+
+renderAll = function renderAllV106() {
+  const filtered = getFiltered();
+  renderStats(filtered);
+  renderAnalyticsBar(filtered);
+  renderList(filtered);
+  renderLeaderboards(filtered);
+  rebuildSourceFilterOptions();
+  renderStoredSources();
+  updateHeroMeta();
+  syncInfographicDateInputs();
+  if (!infographicState) renderInfographicPreview(null);
+  if (!statusInfographicState) renderStatusInfographicPreview(null);
+  const currentTask = selectedNum ? tasks.find(task => task.num === selectedNum) || null : null;
+  renderRoadmap(currentTask);
 };
 
 syncDateFilterRange = function syncDateFilterRangeRedesigned() {
