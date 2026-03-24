@@ -3317,11 +3317,50 @@ function getTaskFrtInfo(task) {
   };
 }
 
-function buildFrtWatchlistHtml(sourceTasks) {
-  const rows = (sourceTasks || [])
+function getFrtWatchlistRows(sourceTasks) {
+  return (sourceTasks || [])
     .map(task => ({ task, frt: getTaskFrtInfo(task) }))
     .filter(item => item.frt && item.frt.ms > 5 * 60000)
     .sort((a, b) => b.frt.ms - a.frt.ms);
+}
+
+function exportFrtWatchlistCsv() {
+  const rows = getFrtWatchlistRows(getFiltered());
+  if (!rows.length) return;
+
+  const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const headers = ['Номер', 'Задача', 'Постановник', 'Виконавець', 'FRT', 'FRT хв', 'FRT призначення', 'FRT відповідь', 'Статус', 'Група'];
+  const lines = [
+    headers.join(';'),
+    ...rows.map(({ task, frt }) => ([
+      task.num || '',
+      task.title || '',
+      task.author || '',
+      task.executor || '',
+      frt.formatted || '',
+      frt.minutes ?? '',
+      frt.assigned || '',
+      frt.answer || '',
+      task.status || '',
+      task.group || ''
+    ].map(escapeCsv).join(';')))
+  ];
+
+  const from = document.getElementById('dateFromFilter')?.value || 'from';
+  const to = document.getElementById('dateToFilter')?.value || 'to';
+  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `frt-over-5m-${from}-${to}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildFrtWatchlistHtml(sourceTasks) {
+  const rows = getFrtWatchlistRows(sourceTasks);
 
   const body = rows.length
     ? rows.map(item => `
@@ -3339,7 +3378,7 @@ function buildFrtWatchlistHtml(sourceTasks) {
     : '<div class="leaderboard-empty">У поточній вибірці немає задач, де FRT перевищує 5 хвилин</div>';
 
   return `
-    <div class="panel-card fade-in">
+    <div class="panel-card fade-in" data-frt-watchlist="true">
       <div class="panel-head">
         <div class="panel-title">FRT > 5 хв</div>
         <div style="font-size:10px;color:var(--text3);">${rows.length} задач для аналізу</div>
@@ -3356,6 +3395,29 @@ function buildFrtWatchlistHtml(sourceTasks) {
   `;
 }
 
+function enhanceFrtWatchlistCard(panel) {
+  const scope = panel || document.getElementById('rightPanel');
+  if (!scope) return;
+
+  const card = scope.querySelector('[data-frt-watchlist="true"]');
+  const head = card?.querySelector('.panel-head');
+  if (!head || head.querySelector('[data-frt-export-btn="true"]')) return;
+
+  const rows = getFrtWatchlistRows(getFiltered());
+  const button = document.createElement('button');
+  button.className = 'btn';
+  button.type = 'button';
+  button.textContent = 'CSV';
+  button.setAttribute('data-frt-export-btn', 'true');
+  button.disabled = !rows.length;
+  if (!rows.length) {
+    button.style.opacity = '.45';
+    button.style.cursor = 'default';
+  }
+  button.addEventListener('click', exportFrtWatchlistCsv);
+  head.appendChild(button);
+}
+
 renderRoadmap = function renderRoadmapV106(task) {
   const panel = document.getElementById('rightPanel');
   if (!panel) return;
@@ -3368,6 +3430,7 @@ renderRoadmap = function renderRoadmapV106(task) {
       </div>
       ${buildFrtWatchlistHtml(getFiltered())}
     `;
+    enhanceFrtWatchlistCard(panel);
     return;
   }
 
@@ -3407,6 +3470,7 @@ renderRoadmap = function renderRoadmapV106(task) {
   if (!panel.querySelector('.frt-watchlist-card')) {
     panel.insertAdjacentHTML('beforeend', buildFrtWatchlistHtml(getFiltered()).replace('panel-card fade-in', 'panel-card fade-in frt-watchlist-card'));
   }
+  enhanceFrtWatchlistCard(panel);
 };
 
 renderAll = function renderAllV106() {
