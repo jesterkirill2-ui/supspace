@@ -4,5 +4,8 @@ window.DASHBOARD_CONFIG = {
     imports: 'sup_dashboard_imports_v1',
     statusHistory: 'sup_dashboard_status_history_v1'
   },
-  dataFolderName: 'data_imports'
+  dataFolderName: 'data_imports',
+  api: {
+    mainDashboardState: '/api/main-dashboard/state'
+  }
 };

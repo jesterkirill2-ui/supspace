@@ -13,8 +13,14 @@ const STORAGE_DIR = path.join(__dirname, 'storage');
 const SETTINGS_PATH = path.join(STORAGE_DIR, 'telegram-settings.json');
 const CHATS_PATH = path.join(STORAGE_DIR, 'telegram-chats.json');
 const USERS_PATH = path.join(STORAGE_DIR, 'users.json');
+const MAIN_DASHBOARD_STATE_PATH = path.join(STORAGE_DIR, 'main-dashboard-state.json');
 const SESSION_COOKIE = 'sup_session';
 const sessions = new Map();
+const defaultMainDashboardState = {
+  imports: [],
+  statusHistory: [],
+  updatedAt: ''
+};
 
 const defaultSettings = {
   botToken: '',
@@ -62,6 +68,9 @@ function ensureStorage() {
     };
     fs.writeFileSync(USERS_PATH, JSON.stringify(seedUsers, null, 2), 'utf8');
   }
+  if (!fs.existsSync(MAIN_DASHBOARD_STATE_PATH)) {
+    fs.writeFileSync(MAIN_DASHBOARD_STATE_PATH, JSON.stringify(defaultMainDashboardState, null, 2), 'utf8');
+  }
 }
 
 function readJson(filePath, fallback) {
@@ -74,6 +83,75 @@ function readJson(filePath, fallback) {
 
 function writeJson(filePath, payload) {
   fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf8');
+}
+
+function normalizeMainDashboardImport(entry, index = 0) {
+  if (!entry || typeof entry !== 'object') return null;
+  const text = String(entry.text || '');
+  if (!text.trim()) return null;
+  const addedAt = entry.addedAt ? new Date(entry.addedAt) : new Date();
+  return {
+    id: String(entry.id || `src_${index + 1}`).trim(),
+    name: String(entry.name || `source-${index + 1}`).trim() || `source-${index + 1}`,
+    text,
+    addedAt: Number.isNaN(addedAt.getTime()) ? new Date().toISOString() : addedAt.toISOString()
+  };
+}
+
+function normalizeMainDashboardStatusHistory(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  const num = String(entry.num || '').trim();
+  if (!num) return null;
+  const items = Array.isArray(entry.items)
+    ? entry.items.map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const status = String(item.status || '').trim();
+        const date = item.date ? new Date(item.date) : null;
+        if (!status || !date || Number.isNaN(date.getTime())) return null;
+        return {
+          date: date.toISOString(),
+          status,
+          source: String(item.source || '').trim()
+        };
+      }).filter(Boolean)
+    : [];
+  if (!items.length) return null;
+  return { num, items };
+}
+
+function getMainDashboardState() {
+  const state = readJson(MAIN_DASHBOARD_STATE_PATH, defaultMainDashboardState);
+  return {
+    imports: Array.isArray(state.imports)
+      ? state.imports.map((entry, index) => normalizeMainDashboardImport(entry, index)).filter(Boolean)
+      : [],
+    statusHistory: Array.isArray(state.statusHistory)
+      ? state.statusHistory.map((entry) => normalizeMainDashboardStatusHistory(entry)).filter(Boolean)
+      : [],
+    updatedAt: state.updatedAt || ''
+  };
+}
+
+function saveMainDashboardState(nextState) {
+  const payload = {
+    imports: Array.isArray(nextState?.imports)
+      ? nextState.imports.map((entry, index) => normalizeMainDashboardImport(entry, index)).filter(Boolean)
+      : [],
+    statusHistory: Array.isArray(nextState?.statusHistory)
+      ? nextState.statusHistory.map((entry) => normalizeMainDashboardStatusHistory(entry)).filter(Boolean)
+      : [],
+    updatedAt: new Date().toISOString()
+  };
+  writeJson(MAIN_DASHBOARD_STATE_PATH, payload);
+  return payload;
+}
+
+function sanitizeMainDashboardState(state = getMainDashboardState()) {
+  return {
+    imports: state.imports,
+    statusHistory: state.statusHistory,
+    updatedAt: state.updatedAt || ''
+  };
 }
 
 function createPasswordHash(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -734,15 +812,40 @@ async function persistIncomingMessage(message) {
   saveChatState(state);
 }
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use('/storage', express.static(STORAGE_DIR));
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
+
+app.get('/dashboard_config.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard_config.js'));
+});
 
 app.get('/', (req, res) => {
-  res.redirect('/support');
+  res.sendFile(path.join(__dirname, 'home.html'));
 });
 
 app.get('/support', (req, res) => {
   res.sendFile(path.join(__dirname, 'support_dashboard.html'));
+});
+
+app.get('/main', (req, res) => {
+  res.sendFile(path.join(__dirname, 'main_dashboard.html'));
+});
+
+app.get('/home', (req, res) => {
+  res.sendFile(path.join(__dirname, 'home.html'));
+});
+
+app.get('/desigh', (req, res) => {
+  res.sendFile(path.join(__dirname, 'supbook.html'));
+});
+
+app.get('/design', (req, res) => {
+  res.sendFile(path.join(__dirname, 'supbook.html'));
+});
+
+app.get('/supbook', (req, res) => {
+  res.sendFile(path.join(__dirname, 'supbook.html'));
 });
 
 app.get('/api/auth/session', (req, res) => {
@@ -825,6 +928,23 @@ app.get('/suphub', (req, res) => {
 
 app.get('/forecast', (req, res) => {
   res.sendFile(path.join(__dirname, 'forecast_dashboard.html'));
+});
+
+app.get('/kln', (req, res) => {
+  res.sendFile(path.join(__dirname, 'kln_dashboard.html'));
+});
+
+app.get('/api/main-dashboard/state', (req, res) => {
+  res.json({ ok: true, state: sanitizeMainDashboardState() });
+});
+
+app.put('/api/main-dashboard/state', (req, res) => {
+  const nextState = saveMainDashboardState({
+    imports: Array.isArray(req.body?.imports) ? req.body.imports : [],
+    statusHistory: Array.isArray(req.body?.statusHistory) ? req.body.statusHistory : []
+  });
+
+  res.json({ ok: true, state: sanitizeMainDashboardState(nextState) });
 });
 
 app.get('/api/dashboard', requireAuth, (req, res) => {

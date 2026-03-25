@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUP SPACE Brand Book</title>
+  <link rel="stylesheet" href="./assets/css/sup-system.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Головна навігація">
+      <div class="brand-lockup">
+        <a class="brand-logo" href="/home" aria-label="SUP SPACE home">
+          <img src="./assets/logo/sup-space-logo.svg" alt="SUP SPACE logo">
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="sidebar-link" href="#colors"><span class="nav-label">Colors</span></a>
+        <a class="sidebar-link" href="#type"><span class="nav-label">Type</span></a>
+        <a class="sidebar-link" href="#components"><span class="nav-label">UI Rules</span></a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="product-switcher">
+          <div class="product-switcher-title">Product.list</div>
+          <div class="product-switcher-links">
+            <a class="product-switcher-link" href="/home">Core</a>
+            <a class="product-switcher-link" href="/main">Supboard</a>
+            <a class="product-switcher-link" href="/support">Supdesk</a>
+            <a class="product-switcher-link" href="/suphub">Suphub</a>
+            <a class="product-switcher-link is-active" href="/supbook">Supbook</a>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <div class="brand-kicker">Unified interface standard</div>
+          <h2 class="page-title">SUP BOOK фіксує правила, за якими ми далі будуємо весь продукт.</h2>
+          <p class="topbar-copy">Ця сторінка не про окремий макет. Вона задає систему: ролі кольорів, стилі тексту, каркас сторінок і логіку використання спільного CSS.</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="pill is-primary">System first</span>
+          <span class="pill">Ubuntu + Ubuntu Mono</span>
+          <span class="pill">Single source of truth</span>
+        </div>
+      </header>
+
+      <section class="content-panel">
+        <section class="section-grid" id="colors">
+          <article class="section-card span-12">
+            <div class="section-head">
+              <div>
+                <div class="brand-kicker">Color system</div>
+                <h3 class="section-title">Правила використання кольорів</h3>
+              </div>
+              <div class="accent-bar" aria-hidden="true"></div>
+            </div>
+            <p class="section-copy">Усі кольори мають використовуватись строго за призначенням. Заборонено змішувати ролі кольорів або додавати нові відтінки повз систему.</p>
+          </article>
+
+          <article class="section-card span-12">
+            <div class="swatch-grid">
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#020617;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Background</h4>
+                  <div class="swatch-hex">#020617</div>
+                  <div class="swatch-role">Body, великі контейнери, базовий шар інтерфейсу.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#0F172A;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Surface</h4>
+                  <div class="swatch-hex">#0F172A</div>
+                  <div class="swatch-role">Карточки, панелі, sidebar, модалки, другий рівень глибини.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#1E293B;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Border</h4>
+                  <div class="swatch-hex">#1E293B</div>
+                  <div class="swatch-role">Рамки, input, таблиці, тонкі розділення.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#38BDF8;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Primary</h4>
+                  <div class="swatch-hex">#38BDF8</div>
+                  <div class="swatch-role">Кнопки, активні елементи, виділення, посилання.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#818CF8;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Accent</h4>
+                  <div class="swatch-hex">#818CF8</div>
+                  <div class="swatch-role">Hover, другорядні підсвітки, допоміжний акцент.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#E2E8F0;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Text Primary</h4>
+                  <div class="swatch-hex">#E2E8F0</div>
+                  <div class="swatch-role">Заголовки, ключові значення, важлива інформація.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#94A3B8;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Text Secondary</h4>
+                  <div class="swatch-hex">#94A3B8</div>
+                  <div class="swatch-role">Описи, підписи, пояснення, metadata.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#64748B;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Muted</h4>
+                  <div class="swatch-hex">#64748B</div>
+                  <div class="swatch-role">Timestamps, технічні деталі, неактивні стани.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:#22C55E;"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Success</h4>
+                  <div class="swatch-hex">#22C55E</div>
+                  <div class="swatch-role">Успішні дії, виконані задачі, позитивні стани.</div>
+                </div>
+              </div>
+              <div class="swatch-card">
+                <div class="swatch-sample" style="background:linear-gradient(90deg,#F59E0B 0%, #EF4444 100%);"></div>
+                <div class="swatch-body">
+                  <h4 class="swatch-name">Warning / Error</h4>
+                  <div class="swatch-hex">#F59E0B / #EF4444</div>
+                  <div class="swatch-role">Попередження, ризики, помилки й критичні блокери.</div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="section-card span-6">
+            <h4 class="subsection-title">Дисципліна використання</h4>
+            <ol class="list">
+              <li>Background не використовується для елементів взаємодії.</li>
+              <li>Surface формує всі робочі площини та інтерфейсні шари.</li>
+              <li>Primary має бути помітним, але не повинен займати більше 10% інтерфейсу.</li>
+              <li>Accent використовується рідко і ніколи не конкурує з Primary.</li>
+            </ol>
+          </article>
+
+          <article class="section-card span-6">
+            <h4 class="subsection-title">Чого не робимо</h4>
+            <ol class="list">
+              <li>Не фарбуємо великі картки у primary-відтінки.</li>
+              <li>Не додаємо нові сірі чи сині відтінки в обхід системи.</li>
+              <li>Не робимо border надто контрастним або декоративним.</li>
+              <li>Не переносимо статусні кольори в нейтральні тексти.</li>
+            </ol>
+          </article>
+        </section>
+
+        <section class="section-grid" id="type">
+          <article class="section-card span-12">
+            <div class="section-head">
+              <div>
+                <div class="brand-kicker">Typography</div>
+                <h3 class="section-title">Шрифти та ієрархія тексту</h3>
+              </div>
+              <span class="pill">Menu uses Ubuntu Mono</span>
+            </div>
+            <p class="section-copy">Для меню використовуємо Ubuntu Mono, для контенту й основних текстів використовуємо Ubuntu. Ця пара тримає баланс між системністю і читабельністю.</p>
+          </article>
+
+          <article class="section-card span-12">
+            <div class="type-grid">
+              <div class="type-card">
+                <div class="type-size">H1 / 44px / Bold</div>
+                <p class="type-preview is-h1">SUP SPACE</p>
+                <div class="type-meta">Головні заголовки, ключові hero-блоки, стартові екрани.</div>
+              </div>
+              <div class="type-card">
+                <div class="type-size">H2 / 24px / Semibold</div>
+                <p class="type-preview is-h2">Єдиний інтерфейс для підтримки</p>
+                <div class="type-meta">Назви основних секцій і змістовних блоків.</div>
+              </div>
+              <div class="type-card">
+                <div class="type-size">H3 / 18px / Semibold</div>
+                <p class="type-preview is-h3">Мінімум шуму, максимум структури</p>
+                <div class="type-meta">Компоненти, карточки, короткі внутрішні підзаголовки.</div>
+              </div>
+              <div class="type-card">
+                <div class="type-size">Body / 14px</div>
+                <p class="type-preview is-body">SUP SPACE будується як сучасний SaaS-продукт: стриманий, функціональний і цілісний у всіх модулях.</p>
+                <div class="type-meta">Базовий текст сторінок, форм, описів і пояснень.</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="section-card span-12">
+            <div class="summary-grid">
+              <div class="summary-card">
+                <div class="type-size">Small / 12px</div>
+                <p class="type-preview is-small">Службові підписи, метадані, часові позначки, технічні пояснення.</p>
+              </div>
+              <div class="summary-card">
+                <div class="type-size">Mono</div>
+                <p class="type-preview is-small">Меню, назви системних зон, версії, короткі токени та microcopy.</p>
+              </div>
+              <div class="summary-card">
+                <div class="type-size">Body rhythm</div>
+                <p class="type-preview is-small">Текст не повинен створювати шум: короткі заголовки, спокійні абзаци, чисті акценти.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="section-grid" id="components">
+          <article class="section-card span-12">
+            <div class="section-head">
+              <div>
+                <div class="brand-kicker">Components and layout</div>
+                <h3 class="section-title">Каркас єдиного інтерфейсу</h3>
+              </div>
+              <span class="pill is-primary">Shared CSS required</span>
+            </div>
+          </article>
+
+          <article class="section-card span-4">
+            <h4 class="subsection-title">Sidebar</h4>
+            <div class="component-preview">
+              <div class="frame-brand"></div>
+              <div class="component-line is-mid"></div>
+              <div class="component-line is-short"></div>
+              <div class="component-line is-mid"></div>
+            </div>
+            <p class="component-note">Фіксований лівий стовпець з брендом, навігацією і нижніми системними елементами.</p>
+          </article>
+
+          <article class="section-card span-4">
+            <h4 class="subsection-title">Surface panel</h4>
+            <div class="component-preview">
+              <div class="component-line"></div>
+              <div class="component-line is-mid"></div>
+              <div class="component-line is-short"></div>
+              <div class="badge-row">
+                <span class="badge is-success">Success</span>
+                <span class="badge is-warning">Warning</span>
+              </div>
+            </div>
+            <p class="component-note">Будь-яка робоча зона починається з Surface-панелі з Border-обводкою та великим радіусом.</p>
+          </article>
+
+          <article class="section-card span-4">
+            <h4 class="subsection-title">Actions</h4>
+            <div class="component-preview">
+              <div class="button-row">
+                <span class="button is-primary">Primary</span>
+                <span class="button">Secondary</span>
+              </div>
+              <div class="badge-row">
+                <span class="badge is-error">Critical</span>
+              </div>
+            </div>
+            <p class="component-note">Інтеракції отримують акцент тільки в місцях дії, а не як декоративний фон.</p>
+          </article>
+
+          <article class="section-card span-6">
+            <h4 class="subsection-title">Правило для нових сторінок</h4>
+            <ol class="list">
+              <li>Нова сторінка стартує з `app-shell`, `sidebar`, `workspace`, `content-panel`.</li>
+              <li>Спочатку використовуємо готові класи з `sup-system.css`, а не пишемо локальні стилі.</li>
+              <li>Якщо новий патерн повторюваний, він спочатку описується в `supbook`.</li>
+            </ol>
+          </article>
+
+          <article class="section-card span-6">
+            <h4 class="subsection-title">Що додамо далі</h4>
+            <ol class="list">
+              <li>Патерни таблиць, форм, станів empty/loading/error.</li>
+              <li>Графіки, таби, фільтри й правила для dashboard-секцій.</li>
+              <li>Уніфіковану іконографіку та spacing-модуль.</li>
+            </ol>
+          </article>
+        </section>
+
+        <div class="footer-note">
+          <span>SUP BOOK буде постійно доповнюватись, але вже зараз став єдиною точкою правди для дизайну.</span>
+          <a class="button" href="/home">Повернутись на головну</a>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
